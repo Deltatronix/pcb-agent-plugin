@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "pcb": {
+      "type": "http",
+      "url": "https://api.deltatronix.io/mcp",
+      "oauth": { "scopes": "pcb:read pcb:write" }
+    }
+  }
+}

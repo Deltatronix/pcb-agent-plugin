@@ -1,0 +1,11 @@
+{
+  "name": "pcb-agent",
+  "version": "0.1.0",
+  "description": "Inspect a Deltatronix PCB and request an approved footprint move in its open editor.",
+  "author": {
+    "name": "Deltatronix"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/Deltatronix/pcb-agent-plugin",
+  "repository": "https://github.com/Deltatronix/pcb-agent-plugin"
+}

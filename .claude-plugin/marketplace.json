@@ -1,0 +1,15 @@
+{
+  "name": "deltatronix-pcb",
+  "description": "Deltatronix PCB agent for Claude Code: inspect an open Deltatronix PCB and request approved footprint moves.",
+  "owner": {
+    "name": "Deltatronix"
+  },
+  "plugins": [
+    {
+      "name": "pcb-agent",
+      "source": "./",
+      "version": "0.1.0",
+      "description": "Inspect an open Deltatronix PCB and request an approved footprint move."
+    }
+  ]
+}
