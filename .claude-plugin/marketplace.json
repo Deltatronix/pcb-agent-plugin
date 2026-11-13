@@ -1,6 +1,6 @@
 {
   "name": "deltatronix-pcb",
-  "description": "Deltatronix PCB agent for Claude Code: inspect an open Deltatronix PCB and request approved footprint moves.",
+  "description": "Deltatronix PCB agent for Claude Code: build, check, save and export a Deltatronix PCB design in its open editor.",
   "owner": {
     "name": "Deltatronix"
   },
@@ -8,8 +8,8 @@
     {
       "name": "pcb-agent",
       "source": "./",
-      "version": "0.1.0",
-      "description": "Inspect an open Deltatronix PCB and request an approved footprint move."
+      "version": "0.2.0",
+      "description": "Build, check, save and export a Deltatronix PCB design in its open editor."
     }
   ]
 }
