@@ -89,8 +89,10 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
-- **0.2.2 (2026-11-14):** the skill syncs footprints without positions and then places each
-  one in millimetres with `pcb_board_place_footprint`; sync positions are nanometres.
+- **0.2.2 (2026-11-14):** every length and coordinate argument is in millimetres (fields that
+  were `*Nm` are now `*Mm`; sync positions, regions and inline-part symbols are mm). The skill
+  syncs footprints without positions, then places each one with `pcb_board_place_footprint`.
+  Needs the editor and server from the same release.
 - **0.2.1 (2026-11-13):** skill only. A revision belongs to one editor tab, so a reopened
   design reports new revisions for the same saved content. Export without final-review facts
   is refused with a copyable example: end the plan and propose one that carries them.
