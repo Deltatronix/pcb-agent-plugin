@@ -84,9 +84,11 @@ through-hole, a courtyard, and `pinToPad`. Its id is
 
 **Board.**
 1. `pcb_board_set_outline` with `rect {x, y, width, height}` or closed segments.
-2. `pcb_board_sync_components` (Update PCB) with a position (nm), rotation and
-   side for every new reference, then `pcb_board_place_footprint` to adjust
-   (mm). `pcb_board_list_footprints` reads them back.
+2. `pcb_board_sync_components` (Update PCB) with no `positions`: new
+   footprints land beside the outline, as in the editor, and the receipt warns
+   that they are off the board. Then `pcb_board_place_footprint` (mm) for each
+   reference. `pcb_board_list_footprints` reads them back. Positions passed to
+   sync are integer nanometres (1 mm = 1000000), not mm.
 3. `pcb_board_configure_stackup`, for example 2 copper layers and one FR4
    dielectric: export needs an explicit stackup.
 4. `pcb_board_configure_design_rules` for board minimums (nanometres).
