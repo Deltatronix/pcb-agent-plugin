@@ -55,10 +55,10 @@ files.
 
 ## 4. Build a design
 
-Units: every length and coordinate you pass is in millimetres (fields such as
-`widthMm`, and plain `x`/`y`). Schematic positions are sheet millimetres on the
-1.27 mm grid. Board reads return integer nanometres and say so in `units`:
-divide by 1000000 before passing a value back.
+Units: every length and coordinate is in millimetres, in what you pass (fields
+such as `widthMm`, and plain `x`/`y`) and in what reads return (`units: "mm"`),
+so a position you read can be passed straight back. Schematic positions are
+sheet millimetres on the 1.27 mm grid.
 
 **Parts.** `pcb_components_search` / `pcb_components_inspect` find library
 parts (insert them by `decisionId`). A part the library lacks is defined once
@@ -88,7 +88,7 @@ through-hole, a courtyard, and `pinToPad`. Its id is
 2. `pcb_board_sync_components` (Update PCB) with no `positions`: new
    footprints land beside the outline, as in the editor, and the receipt warns
    that they are off the board. Then `pcb_board_place_footprint` (mm) for each
-   reference. `pcb_board_list_footprints` reads them back (in nanometres).
+   reference. `pcb_board_list_footprints` reads them back.
 3. `pcb_board_configure_stackup`, for example 2 copper layers and one FR4
    dielectric: export needs an explicit stackup.
 4. `pcb_board_configure_design_rules` for board minimums (`minClearanceMm` and
