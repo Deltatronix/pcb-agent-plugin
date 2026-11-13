@@ -1,6 +1,6 @@
 {
   "name": "pcb-agent",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Build, check, save and export a Deltatronix PCB design in its open editor under one approved plan.",
   "author": {
     "name": "Deltatronix"
