@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "pcb-agent",
-  "version": "0.1.0",
-  "description": "Inspect a Deltatronix PCB and request an approved footprint move in its open editor.",
+  "version": "0.2.0",
+  "description": "Build, check, save and export a Deltatronix PCB design in its open editor under one approved plan.",
   "author": {
     "name": "Deltatronix"
   },
@@ -11,7 +11,7 @@
     "com.openai": {
       "interface": {
         "displayName": "Deltatronix PCB agent",
-        "shortDescription": "Inspect PCBs and request approved footprint moves.",
+        "shortDescription": "Build and edit PCB designs under one approved plan.",
         "developerName": "Deltatronix"
       },
       "onboardingSkill": "./skills/pcb-agent/SKILL.md"
