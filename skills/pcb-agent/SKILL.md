@@ -35,7 +35,7 @@ files.
 ## 3. Observe, then one plan
 
 1. Read first: `pcb_schematic_get_summary` (counts, ERC and the sheet placements:
-   `sheets.items[].sheetInstanceId`, which inserts need) and
+   `sheets[].sheetInstanceId`, which inserts need) and
    `pcb_board_get_summary`. Use the returned revisions.
 2. Propose one plan with `pcb_plan_propose`: a `title`, `steps`
    (`{summary, tools[]}` the user reads), `maxCalls` (all writes the plan may
