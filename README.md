@@ -80,7 +80,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.0 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.1 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -89,6 +89,9 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.1 (2026-11-13):** skill only. A revision belongs to one editor tab, so a reopened
+  design reports new revisions for the same saved content. Export without final-review facts
+  is refused with a copyable example: end the plan and propose one that carries them.
 - **0.2.0 (2026-11-13):** catalog version 2 (version 1 is refused). The plan workflow: propose
   one plan, the user approves it once in the editor, writes carry its `planId`. Build tools for
   the whole design: inline parts, schematic drawing and ERC, outline, sync and placement,
