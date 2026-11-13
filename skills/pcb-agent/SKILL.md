@@ -31,6 +31,9 @@ files.
 - Inside an approved plan, pass its `planId` on every write.
 - Read results carry `revision`; write results carry `receipt.transactionId`,
   the new `revision`, and for schematic writes a `diff`.
+- A revision belongs to one editor tab. A reopened design or another tab
+  reports new revisions for the same saved content: read again, and compare
+  content, not revisions, across sessions.
 
 ## 3. Observe, then one plan
 
@@ -121,6 +124,10 @@ file bytes. The approved plan must list it and carry:
   }
 }
 ```
+
+Without these, export is refused with `FINAL_REVIEW_REQUIREMENTS_UNAVAILABLE`
+and a copyable example: end the plan, propose one with the requirements, and
+export again. A plan's requirements cannot be added after approval.
 
 A `REVIEW_NOT_READY` refusal lists what blocks it (unmet requirements, critical
 findings, what it could not verify). Fix those and export again.
