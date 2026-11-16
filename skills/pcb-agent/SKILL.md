@@ -55,14 +55,15 @@ files.
 
 ## 4. Build a design
 
-Units: schematic positions are sheet millimetres on the 1.27 mm grid; board
-tools take millimetres, except `pcb_board_sync_components` positions and the
-`*Nm` fields, which are integer nanometres.
+Units: every length and coordinate is in millimetres, in what you pass (fields
+such as `widthMm`, and plain `x`/`y`) and in what reads return (`units: "mm"`),
+so a position you read can be passed straight back. Schematic positions are
+sheet millimetres on the 1.27 mm grid.
 
 **Parts.** `pcb_components_search` / `pcb_components_inspect` find library
 parts (insert them by `decisionId`). A part the library lacks is defined once
-with `pcb_part_define`: symbol pins in 2.54 mm grid units (+y down, x/y is the
-pin's connection point), footprint pads in millimetres with drill for
+with `pcb_part_define`: symbol body and pins in mm on the 2.54 mm grid (+y
+down, x/y is the pin's connection point), footprint pads in millimetres with drill for
 through-hole, a courtyard, and `pinToPad`. Its id is
 `inline:<name in lowercase, non-alphanumerics as ->`.
 
@@ -84,14 +85,16 @@ through-hole, a courtyard, and `pinToPad`. Its id is
 
 **Board.**
 1. `pcb_board_set_outline` with `rect {x, y, width, height}` or closed segments.
-2. `pcb_board_sync_components` (Update PCB) with a position (nm), rotation and
-   side for every new reference, then `pcb_board_place_footprint` to adjust
-   (mm). `pcb_board_list_footprints` reads them back.
+2. `pcb_board_sync_components` (Update PCB) with no `positions`: new
+   footprints land beside the outline, as in the editor, and the receipt warns
+   that they are off the board. Then `pcb_board_place_footprint` (mm) for each
+   reference. `pcb_board_list_footprints` reads them back.
 3. `pcb_board_configure_stackup`, for example 2 copper layers and one FR4
    dielectric: export needs an explicit stackup.
-4. `pcb_board_configure_design_rules` for board minimums (nanometres).
+4. `pcb_board_configure_design_rules` for board minimums (`minClearanceMm` and
+   the other `*Mm` fields).
 5. Route each connection with `pcb_board_route_net` (`fromRef/fromPad`,
-   `toRef/toPad`, `layer`, `widthNm`). Use the other layer where routes cross. A
+   `toRef/toPad`, `layer`, `widthMm`). Use the other layer where routes cross. A
    search that stops short returns `partial` and adds nothing: change the layer
    or placement, or draw an exact path with `pcb_board_add_track`.
 6. `pcb_board_pour_copper_zone` (for example `GND` on `B.Cu`).
