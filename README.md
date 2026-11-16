@@ -80,7 +80,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.2 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.3 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -89,6 +89,9 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.3 (2026-11-16):** skill only. Inside a plan, writes answer `applied` or `verified`
+  without waiting for the save; call `pcb_design_save` after the last edit, the only planned
+  call that answers `saved`.
 - **0.2.2 (2026-11-14):** every length and coordinate is in millimetres, in arguments and in
   board read results (fields that were `*Nm` are now `*Mm`; sync positions, regions and
   inline-part symbols are mm). The skill

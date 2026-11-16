@@ -146,6 +146,8 @@ asks the user in the editor, even inside a plan: call it without `planId`.
 
 - `applied`: the editor applied the change. `verified`: it also checked it.
   `saved`: it is durably stored. Never claim a save without a `saved` receipt.
+- Inside a plan, writes answer `applied` or `verified`. Call `pcb_design_save`
+  after the last edit; only it answers `saved`.
 - `uncertain`: the outcome is unknown. Read again; do not resend under a new key.
 - `refused` comes with a reason and usually a message with a valid example. It
   is a normal stop: read the reason, fix the call or the design, and do not
