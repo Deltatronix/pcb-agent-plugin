@@ -44,8 +44,9 @@ files.
    (`{summary, tools[]}` the user reads), `maxCalls` (all writes the plan may
    make, up to 500), `expiresInMinutes` (up to 120), `expectedRevision`, and
    for export the `requirements` below.
-3. Tell the user to approve it in the editor tab, then poll `pcb_plan_get` until
-   `status` is `approved`. A declined, stopped or expired plan stops the work.
+3. Tell the user to approve it in the editor tab, then call `pcb_plan_get` with
+   `waitSeconds: 30`. Repeat while the status is `pending`. A declined, stopped
+   or expired plan stops the work.
 4. Writes in the plan's tools run without further dialogs. A tool outside the
    plan, a spent budget, an expired or stopped plan is refused. One active plan
    per client and design: end it with `pcb_plan_end` before proposing another.
