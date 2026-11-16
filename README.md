@@ -80,7 +80,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.2 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.3 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -89,6 +89,11 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.3 (2026-11-16):** the pin tools take lists. `pcb_schematic_add_no_connect`,
+  `pcb_schematic_add_power` and `pcb_schematic_add_label` take targets (a part and some of its
+  pins), up to 256 pins per call, all or nothing; the single-pin shape is gone.
+  `pcb_schematic_insert_components` takes each part's `value`. Needs the editor and server
+  from the same release.
 - **0.2.2 (2026-11-14):** every length and coordinate is in millimetres, in arguments and in
   board read results (fields that were `*Nm` are now `*Mm`; sync positions, regions and
   inline-part symbols are mm). The skill
