@@ -90,7 +90,7 @@ a row. Please report problems in this repository's issues.
 ## Changelog
 
 - **0.2.5 (2026-11-17):** build with `pcb_batch_write`: one schematic batch,
-  one board batch, then save and export; adds plan accounting, checks and
+  one board batch and one pour batch, then save and export; adds plan accounting, checks and
   refusal recovery guidance (Deltatronix-pcb#4253).
 - **0.2.4 (2026-11-17):** moves guidance and examples from the shortened MCP tool
   descriptions into the skill; tools and arguments are unchanged.

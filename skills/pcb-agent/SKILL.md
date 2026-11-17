@@ -85,9 +85,11 @@ reference for each operation's `args`.
    no-connect.
 2. Read `pcb_board_get_summary` again with a small `pageSize`: a schematic
    commit moves the board revision. Use this revision for the board batch.
-3. One board `pcb_batch_write` with `check: true`: outline, sync, placements,
-   stackup, rules, routes, pour.
-4. `pcb_design_save`, then `pcb_board_export_manufacturing` (requirements below).
+3. One board `pcb_batch_write`: outline, sync, placements, stackup, rules,
+   routes.
+4. One pour batch with `check: true`: the copper pour (for example GND on
+   B.Cu), alone.
+5. `pcb_design_save`, then `pcb_board_export_manufacturing` (requirements below).
 
 **Parts.** `pcb_components_search` / `pcb_components_inspect` find library
 parts (insert them by `decisionId`). A part the library lacks is defined once
@@ -226,7 +228,9 @@ needed and left. A batch refused in the editor has spent its calls.
 
 `pcb_design_save`, `pcb_board_export_manufacturing`, `pcb_design_import_kicad`,
 plan tools and the batch itself cannot be operations (`BATCH_TOOL_NOT_ALLOWED`).
-Mixing schematic and board tools gives `BATCH_MIXED_DOMAINS`.
+Mixing schematic and board tools gives `BATCH_MIXED_DOMAINS`. Copper-zone
+tools (pour, refill) go in a batch of their own: mixing them with other tools
+is refused before anything runs (`BATCH_MIXED_ZONE_TOOLS`).
 
 Results have `operations[]` with zero-based `index`, `tool`, `status` (`applied`
 or `noop`) and `summary`. With `check: true`, `checks.erc` has `errors` and
