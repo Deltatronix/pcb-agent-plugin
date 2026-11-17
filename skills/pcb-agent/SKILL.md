@@ -24,11 +24,22 @@ files.
 
 ## 2. Every call
 
+- The server instructions now only say "Deltatronix PCB editor tools. Follow the
+  pcb-agent skill." This skill is the place for the tool rules and examples.
+- Every length and coordinate in arguments and results is in millimetres. An
+  `Mm` suffix names the unit; unsuffixed coordinates such as `x` and `y` are
+  millimetres too. Reads return `units: "mm"`, so a position you read can be
+  passed straight back. Schematic positions are sheet coordinates on the
+  1.27 mm connection grid.
 - Pass `designId` and `catalogVersion: 2`. Version 1 is retired.
 - Writes also take the current domain `revision` as `expectedRevision` (from your
   latest read of that domain, schematic or board) and a new UUID
   `idempotencyKey`. Reuse a key only for an identical retry.
-- Inside an approved plan, pass its `planId` on every write.
+- "Plan required" in a tool description means the write belongs inside an
+  approved plan: get `planId` from an approved `pcb_plan_propose` and pass it on
+  every write in that plan. Without a plan, the write asks the user in its own
+  dialog (section 3, item 5). Native edit admission still applies. See Save and
+  Import for their exceptions.
 - Read results carry `revision`; write results carry `receipt.transactionId`,
   the new `revision`, and for schematic writes a `diff`.
 - A revision belongs to one editor tab. A reopened design or another tab
@@ -37,29 +48,33 @@ files.
 
 ## 3. Observe, then one plan
 
+Observation results are bounded pages. Narrow by reference, sheet, net, region
+or severity, or use a smaller `pageSize`. For `pcb_schematic_list_symbols` and
+`pcb_board_list_footprints`, request fewer fields too.
+
 1. Read first: `pcb_schematic_get_summary` (counts, ERC and the sheet placements:
    `sheets[].sheetInstanceId`, which inserts need) and
    `pcb_board_get_summary`. Use the returned revisions.
 2. Propose one plan with `pcb_plan_propose`: a `title`, `steps`
    (`{summary, tools[]}` the user reads), `maxCalls` (all writes the plan may
    make, up to 500), `expiresInMinutes` (up to 120), `expectedRevision`, and
-   for export the `requirements` below.
+   for export the `requirements` below. Use the revision you planned against.
+   Keep the title to one line naming what you build or change. Steps are read
+   in order; each summary is one line in the approval dialog. A new plan
+   returns `planId` with status `pending`. Expiry starts after approval.
 3. Tell the user to approve it in the editor tab, then call `pcb_plan_get` with
    `waitSeconds: 30`. Repeat while the status is `pending`. A declined, stopped
    or expired plan stops the work.
 4. Writes in the plan's tools run without further dialogs. A tool outside the
    plan, a spent budget, an expired or stopped plan is refused. One active plan
    per client and design: end it with `pcb_plan_end` before proposing another.
-   Count calls generously; the user can stop the plan at any time.
-5. Without a plan, every write raises its own approval dialog. Do not do that
-   for a build.
+   Count calls generously; the user can stop the plan at any time. Proposal
+   rate limits also refuse. End the plan when its work is done; applied edits
+   remain, each with its own undo.
+5. Without a plan, writes that support individual approval raise their own
+   dialog. Do not do that for a build.
 
 ## 4. Build a design
-
-Units: every length and coordinate is in millimetres, in what you pass (fields
-such as `widthMm`, and plain `x`/`y`) and in what reads return (`units: "mm"`),
-so a position you read can be passed straight back. Schematic positions are
-sheet millimetres on the 1.27 mm grid.
 
 **Parts.** `pcb_components_search` / `pcb_components_inspect` find library
 parts (insert them by `decisionId`). A part the library lacks is defined once
@@ -115,12 +130,16 @@ through-hole, a courtyard, and `pinToPad`. Its id is
 
 **Save.** `pcb_design_save` waits until the sheets and the board are durably
 stored and returns `saved` with both revisions, or `timed_out` / `uncertain`
-with a reason. It needs no plan entry and may be called with any revision.
+with a reason. It waits for the co-editing room checkpoint or editor save and
+never reports saved early. Call it in any plan or without one, without asking
+for approval. It needs no plan entry and saves the current content regardless
+of which held `expectedRevision` you supply. See Every call for tab revisions.
 
 **Export.** `pcb_board_export_manufacturing` runs the final review, then stores a
 ZIP (Gerbers incl. mask and silk, drill, position, BOM) as a design asset and
-returns `artifact` (assetId, filename, sha256, file list, short-lived URL), never
-file bytes. The approved plan must list it and carry:
+returns `artifact` (`assetId`, filename, SHA-256 `contentHash`, size, file list,
+short-lived URL), never file bytes. Select the archive contents with
+`artifactKinds`. The approved plan must list it and carry:
 
 ```json
 "requirements": {
@@ -151,8 +170,11 @@ findings, what it could not verify). Fix those and export again.
 
 `pcb_design_import_kicad` with `mode: "replace"` and `files: [{path, text}]`
 replaces the design's schematic and board with a KiCad project (`.kicad_pro`,
-`.kicad_sch`, `.kicad_pcb`; 4 MiB in all). It always
-asks the user in the editor, even inside a plan: call it without `planId`.
+`.kicad_sch` including sub-sheets, `.kicad_pcb`, `.kicad_dru`, `fp-lib-table`,
+and `sym-lib-table`; 4 MiB in all). Use project-relative paths. This matches
+File > Open KiCad Project Folder and returns an import summary and new
+schematic/board revisions. Every import receives separate editor approval;
+plans cannot pre-approve it. Call it without `planId`.
 
 ## 6. Results
 
@@ -166,3 +188,255 @@ asks the user in the editor, even inside a plan: call it without `planId`.
   invent other tools. `STALE_REVISION` means read again first.
 - Report what you built from read-backs (ERC, DRC, nets, footprints), not from
   your own plan.
+
+## 7. Tool notes
+
+These notes supplement the build order above. Use Every call for units,
+admission and revisions, and Observe, then one plan for paging and approval.
+
+### Read the design
+
+- `pcb_schematic_get_summary`: The first 16 sheet placements include
+  `sheetInstanceId` and path. Inserts use those IDs as described above. ERC
+  violations are a bounded page.
+- `pcb_schematic_list_symbols`: References are the displayed symbol references.
+  Scope selectors by sheet, reference or connected net. See the observation
+  advice above for fields and page size.
+- `pcb_schematic_get_symbol`: UUIDs are not references. Duplicate displayed
+  references require a sheet placement.
+- `pcb_schematic_get_net`: Address an unnamed net with its solver identifier.
+  Pin endpoints are semantic and paged.
+- `pcb_schematic_list_erc`: Download the full ERC report from the ERC panel.
+- `pcb_board_get_summary`: Counts include current DRC findings, with a bounded
+  violation page.
+- `pcb_board_list_footprints`: Listing references does not derive DRC or load
+  geometry. See the observation advice above for fields and page size.
+- `pcb_board_get_footprint`: Returns separate geometry boxes and bounded pads,
+  never footprint primitives.
+- `pcb_board_get_net`: Reports routed length and segments. Pad endpoints and
+  ratsnest endpoints are independently paged.
+- `pcb_board_get_region`: Intersection uses placed geometry bounds, rather
+  than footprint origins alone.
+- `pcb_board_list_drc`: Uses the editor's DRC runner.
+- `pcb_board_get_stackup`: Read back the physical stackup before editing,
+  including materials and dielectric properties.
+- `pcb_board_get_net_classes`: Dimensional class fields carry their source
+  `Mm` suffix.
+- `pcb_board_get_mechanical`: Heights are model-bounds hints or explicitly
+  unavailable. Results contain no meshes or model IR.
+
+### Approve the work
+
+- `pcb_plan_propose`: See Observe, then one plan for fields and approval.
+  Requirement-gated tools read `requirements` as approved facts and check them
+  against the design when used.
+  - `requirements.brief`: Placement and final-review requirement IDs must cite
+    brief items with category `user_decision`, provenance `user` and approval
+    `approved`. The user approves them with the plan. See the Export example
+    for a `stackup` item whose `value {referencePlane: {net, layer}}` names the
+    reference ground.
+  - `requirements.inputArtifacts`: Identify artifacts bound by placement facts,
+    such as the saved schematic.
+  - `requirements.placement`: Version 1 constraints cover layers, stackup,
+    fixed positions, allowed sides/rotations, relationships and mechanical
+    outline.
+  - `requirements.finalReview`: Required for manufacturing export; list that
+    tool in a step. Checks cite approved brief items and are evaluated against
+    the board. `artifactKinds` selects archive contents: drill is always
+    included; add gerber, bom and placement as needed. Functional selectors
+    also require `reference` and `functionalKind`.
+
+    ```text
+    Minimal: {manufacturingPreset, artifactKinds: [gerber, drill, bom, placement], checks: [{requirementId: erc, selector: {kind: erc}, applicability: required}, {requirementId: drc, selector: {kind: drc}, applicability: required}]}.
+    ```
+
+- `pcb_plan_get`: Status is `pending`, `approved`, `declined`, `stopped`,
+  `expired` or `exhausted`. Omit `planId` to read this client's latest plan for
+  the design. `waitSeconds` holds a pending call for up to 30 seconds and
+  answers immediately on approval or decline. See Observe, then one plan for
+  the wait loop.
+- `pcb_plan_end`: See Observe, then one plan for when to end it and undo.
+
+### Choose parts
+
+- `pcb_components_search` and `pcb_components_inspect`: Search by part kind
+  (resistor, potentiometer, LED, connector), part name, MPN or manufacturer;
+  value words such as 10k or 220 are ignored; supply value in
+  pcb_schematic_insert_components, or edit it later with
+  pcb_schematic_set_symbol_field. Then inspect a returned componentId; the
+  catalog's default symbol and footprint are selected unless you pass their
+  IDs. A result with packageCount 0 is a generic symbol: insert it with a
+  footprint from pcb_footprints_search that its footprintFilters describe.
+  Example:
+
+  ```text
+  {componentId: <returned ID>, pinNumber: '1'}
+  ```
+
+  For `pcb_components_search`, continue with `nextOffset` and the same
+  query/limit. Pages are best effort because the catalog API has no collection
+  revision. For `pcb_components_inspect`, pin labels and datasheet links are
+  not manufacturer evidence.
+- `pcb_footprints_search`: Searches name substrings, optionally within a
+  library. Name examples: `LED_D5.0mm`, `3386`, `PinHeader_1x05`. Library
+  examples: `LED_THT`, `Resistor_THT`, `Potentiometer_THT`,
+  `Connector_PinHeader_2.54mm`. Returned `Library:Name` values also work in the
+  Footprint field.
+
+  ```text
+  {"query":"LED_D5.0mm","library":"LED_THT"} or {"query":"PinHeader_1x05_P2.54mm"}
+  ```
+
+- `pcb_part_define`: See Parts above for symbol geometry, grid, `pinToPad` and
+  ID format. Footprints have pads with size and optional drill, a courtyard
+  rectangle, optional silk outline and text, and `smd` or `through_hole`
+  technology. Both symbol and footprint checkers validate the part. It is
+  stored only in the design, never a library. Names producing an occupied ID
+  are refused. Pass its ID as `inlinePartId` on insert, with optional `value`.
+- `pcb_part_get`: Omit `inlinePartId` to list every inline part's ID, name,
+  pin count and pad count.
+
+### Draw the schematic
+
+For embedded pin names and repeated names, see Schematic step 6. For list
+limits, atomicity and skipped-pin counts, see Schematic step 2. Lists need at
+least one target; labels and rails need at least one entry. Each target needs
+1..64 unique pins. The upper limits above apply to all three list tools.
+
+- `pcb_schematic_insert_components`: Each component names exactly one of
+  `decisionId` and `inlinePartId`. Decisions must be explicitly host-reviewed;
+  inline IDs come from `pcb_part_define`. For a generic library symbol, use
+  the catalog guidance above; its required `Library:Name` footprint must have
+  pads covering its pins. Every reference is explicit. Optional `value` sets
+  Value on every unit in the same undo entry; any string up to 1024 characters
+  is accepted, including empty text. Positions are optional, one per unit, on
+  the schematic grid from Every call:
+
+  ```text
+  { unit: 1, x: 25.4, y: 12.7, rotation: 0 }
+  ```
+
+  Alternatively, `near { reference, side }` places every unit in the first
+  free 100 mil slot on that side of a placed part. Omit both to select the
+  next free slot to the right of the sheet's parts. Raw geometry and
+  manufacturer claims are not accepted.
+- `pcb_schematic_connect`: Connects exactly two actual embedded pins on one
+  unique sheet placement. Code resolves native geometry. Cross-sheet,
+  repeated-file, bus edits and unintended joins are unavailable.
+- `pcb_schematic_add_label`: List form:
+
+  ```text
+  labels [{net, kind, targets: [{reference, pins, sheet?}]}]
+  ```
+
+  Labels go on the connection point or a 2.54 mm stub wire when that point is
+  taken. Matching-net pins use the skip rule above. Missing pins, conflicting
+  net names and unintended joins refuse.
+- `pcb_schematic_add_power`: List form:
+
+  ```text
+  rails [{rail, targets: [{reference, pins, sheet?}]}]
+  ```
+
+  Code places each power symbol outward from the pin and wires it.
+  Matching-rail pins use the skip rule above. The PWR_FLAG rule in Schematic
+  step 3 checks for a power output anywhere in the design. Conflicting net
+  names refuse.
+- `pcb_schematic_add_no_connect`: List form:
+
+  ```text
+  targets [{reference, pins, sheet?}]
+  ```
+
+  Flags go on connection points. Already marked pins use the skip rule above.
+  Missing or connected pins refuse.
+- `pcb_schematic_add_wire`: Explicit points contain 2..64 sheet coordinates
+  on the connection grid from Every call and are never rounded. Named
+  `from`/`to` pins produce an orthogonal path. Code adds junctions where the
+  wire tees into another wire and refuses unintended joins.
+- `pcb_schematic_move_symbol`: Addresses an unwired symbol by reference.
+  Move all units or one unit by direction and a number of 2.54 mm steps; code
+  computes the grid position. Broken or joined connections, body overlap and
+  leaving the pin grid refuse.
+- `pcb_schematic_rotate_symbol`: Rotate all units or one unit of an unwired
+  symbol by a quarter turn clockwise, counterclockwise, or a half turn about
+  its origin. Broken or joined connections and body overlaps refuse.
+- `pcb_schematic_remove_symbol`: Removes every unit and pin labels/no-connect
+  flags serving no other wire or pin. Wires stay.
+- `pcb_schematic_annotate`: `fill` numbers unannotated parts; `duplicates`
+  renumbers the later part of each duplicate reference; `all` renumbers every
+  part by position.
+- `pcb_schematic_tidy`: Autoplaces symbol fields and faces local labels along
+  their wire on one sheet placement. The net-to-pin map must remain identical.
+- `pcb_schematic_set_symbol_field`: See Schematic step 1 for Value, Footprint
+  and Datasheet; user fields are supported too. Reference uses annotation.
+  Footprints must resolve to library land patterns or patterns embedded in
+  the design. Ambiguous references require a sheet path or sheet ID.
+- `pcb_schematic_set_net_class`: Creates or updates a project class by name
+  and optionally assigns named nets. Default is used by every unassigned net.
+  Dimensions include track width, clearance and via sizes. The board router
+  and DRC consume these classes.
+
+### Build and check the board
+
+- `pcb_board_set_outline`: Replaces all board-owned Edge.Cuts, including
+  cutouts. The rectangle form in Board step 1 also accepts `cornerRadius?`.
+  Paths contain line segments or arcs through `mid`. Mounting holes are
+  footprints, not outline geometry.
+- `pcb_board_sync_components`: Uses the editor's Update PCB operation from
+  Board step 2. Adds new footprints and updates changed ones while keeping
+  existing footprints, routes and user models. `removeMissing` removes
+  unlocked footprints whose symbols disappeared; board-only footprints stay.
+  Courtyard/edge findings appear as receipt warnings. With approved placement
+  facts, every added reference requires an explicit in-scope position, the
+  mechanical layout is applied, and new violations refuse.
+- `pcb_board_place_footprint`: Positions are absolute; rotation is degrees.
+  Courtyard overlaps and courtyards crossing the edge are applied and reported
+  as receipt warnings.
+- `pcb_board_move_footprint`: Movement is relative to the footprint's current
+  position.
+- `pcb_board_delete_items`: Accepts footprint references and returned IDs for
+  tracks, vias, zones or board graphics. At most 200 items per call; no
+  delete-all. Locked and unknown items refuse.
+- `pcb_board_configure_stackup`: Dielectric ply 0 is the row; higher indices
+  identify existing sublayers. Changing copper count preserves thickness.
+  Explicit ply thickness edits update board total thickness. Material
+  properties are supplied facts, not verified impedance. See Board step 3 for
+  the explicit 2-layer FR4 export stackup.
+- `pcb_board_configure_design_rules`: Changes board-wide Board Setup minimums
+  while preserving other settings. It does not edit project net classes or
+  establish supplier compliance. Zero disables a minimum; null restores its
+  existing default. `minResolvedSpokes` is an integer count.
+- `pcb_board_route_net`: Uses `search.ts`. An explicit track-end or existing
+  through-via anchor supports a bounded layer transition; through vias span
+  the full stack. Both legs must reach within one 200 ms search budget and
+  pass native DRC. Crossed pours refill in the same transaction. A partial
+  search returns the last clear point; see Board step 5 for recovery and the
+  no-copper result. Geometry compliance does not establish engineering
+  readiness: current-budget provenance and reference continuity require
+  evidence.
+- `pcb_board_add_track`: Adds an exact path on a copper layer, optionally
+  with full-stack through vias at specified points. It performs no search and
+  has no DRC gate. Shorts refuse before commit and name the other net. Crossed
+  pours refill in the same transaction. Run `pcb_board_run_drc` afterward.
+- `pcb_board_pour_copper_zone`: Creates or reshapes a plane to the native
+  closed outline and refills it. Resizing requires a single exterior outline
+  and a single-layer zone. Refill also covers other stale pours required for
+  consistent clearances.
+- `pcb_board_refill_copper_zone`: Does not change the selected zone's outline.
+  It also refills other stale pours as described above. Run after routing and
+  before DRC.
+- `pcb_board_run_drc`: Runs against the current board revision. Returns
+  error, warning and unconnected counts by rule and the first findings page.
+  Continue with `pcb_board_list_drc` and the returned cursor. The run never
+  edits; refill pours first. See Board step 7 for schematic parity.
+
+### Save, export or import
+
+- `pcb_design_save`: See Save for durable checkpoints and approval, and Every
+  call for revision tokens across tabs and sessions.
+- `pcb_board_export_manufacturing`: See Export for required plan facts,
+  refusals and returned archive metadata; see Approve the work for final-review
+  selectors and artifact selection, and Board step 3 for the explicit stackup.
+- `pcb_design_import_kicad`: See Import a KiCad project for files, size limits,
+  results and separate editor approval.
