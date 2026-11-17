@@ -44,8 +44,9 @@ files.
    (`{summary, tools[]}` the user reads), `maxCalls` (all writes the plan may
    make, up to 500), `expiresInMinutes` (up to 120), `expectedRevision`, and
    for export the `requirements` below.
-3. Tell the user to approve it in the editor tab, then poll `pcb_plan_get` until
-   `status` is `approved`. A declined, stopped or expired plan stops the work.
+3. Tell the user to approve it in the editor tab, then call `pcb_plan_get` with
+   `waitSeconds: 30`. Repeat while the status is `pending`. A declined, stopped
+   or expired plan stops the work.
 4. Writes in the plan's tools run without further dialogs. A tool outside the
    plan, a spent budget, an expired or stopped plan is refused. One active plan
    per client and design: end it with `pcb_plan_end` before proposing another.
@@ -69,15 +70,26 @@ through-hole, a courtyard, and `pinToPad`. Its id is
 
 **Schematic.**
 1. `pcb_schematic_insert_components`: references, `sheetInstanceId` from the
-   summary, `inlinePartId` or `decisionId`, positions. Leave room: a wire between
-   two pins must not cross a third pin.
-2. `pcb_schematic_set_symbol_field` for Value (and Footprint, Datasheet).
-3. Power: `pcb_schematic_add_power` per pin (`rail` such as `+5V`, `GND`); it
-   adds one PWR_FLAG only when nothing drives the rail.
-4. Signals: `pcb_schematic_add_label` with the same `net` on each pin (`global`
-   labels give board nets those exact names), or `pcb_schematic_connect` for a
-   direct wire, then a label to name it.
-5. `pcb_schematic_add_no_connect` on every unused pin.
+   summary, `inlinePartId` or `decisionId`, positions, and each part's `value`
+   (`"10k"`, `"220R"`), set on insert. Leave room: a wire between two pins must
+   not cross a third pin. `pcb_schematic_set_symbol_field` changes a Value
+   later (and Footprint, Datasheet).
+2. The pin tools take lists. A target is one part and some of its pins:
+   `{"reference": "A1", "pins": ["D2", "D3"]}`. Up to 64 targets per list, 32
+   rails or labels per call and 256 pins per call. A call is all or nothing: the
+   first pin refused refuses the whole call and the reason starts with that pin
+   (`A1.D7: ...`). A pin already in the requested state is skipped and counted.
+3. Power: `pcb_schematic_add_power` with every rail in one call; it adds one
+   PWR_FLAG per rail only when nothing drives that rail:
+   `{"rails": [{"rail": "+5V", "targets": [{"reference": "A1", "pins": ["5V"]}]},
+   {"rail": "GND", "targets": [{"reference": "A1", "pins": ["4", "29"]}]}]}`
+4. Signals: `pcb_schematic_add_label`, one entry per net with all its pins
+   (`global` labels give board nets those exact names):
+   `{"labels": [{"net": "POT", "kind": "global", "targets": [{"reference": "A1",
+   "pins": ["A0"]}, {"reference": "RV1", "pins": ["W"]}]}]}`. Or
+   `pcb_schematic_connect` for a direct wire, then a label to name it.
+5. `pcb_schematic_add_no_connect` with every unused pin in one call:
+   `{"targets": [{"reference": "A1", "pins": ["D2", "D3", "D4"]}]}`
 6. A pin is its embedded name, or its number when the part repeats that name
    (an Arduino Nano's two GND pins are `4` and `29`). An ambiguous name is
    refused with the numbers to use.
@@ -146,6 +158,8 @@ asks the user in the editor, even inside a plan: call it without `planId`.
 
 - `applied`: the editor applied the change. `verified`: it also checked it.
   `saved`: it is durably stored. Never claim a save without a `saved` receipt.
+- Inside a plan, writes answer `applied` or `verified`. Call `pcb_design_save`
+  after the last edit; only it answers `saved`.
 - `uncertain`: the outcome is unknown. Read again; do not resend under a new key.
 - `refused` comes with a reason and usually a message with a valid example. It
   is a normal stop: read the reason, fix the call or the design, and do not
