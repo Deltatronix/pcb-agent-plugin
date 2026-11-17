@@ -6,9 +6,8 @@ description: Build, edit, check, save and export a Deltatronix PCB design (schem
 # PCB agent
 
 Everything runs in the user's open PCB editor tab: geometry, routing, ERC, DRC,
-fills and export. You send MCP calls; the editor applies them, each as its own
-undoable transaction with a receipt. Work on the platform, never in local KiCad
-files.
+fills and export. The editor applies each write or batch as one undoable
+transaction with a receipt. Work on the platform, never in local KiCad files.
 
 ## 1. Connect
 
@@ -39,7 +38,7 @@ files.
   approved plan: get `planId` from an approved `pcb_plan_propose` and pass it on
   every write in that plan. Without a plan, the write asks the user in its own
   dialog (section 3, item 5). Native edit admission still applies. See Save and
-  Import for their exceptions.
+  Import for their exceptions. Batches always need a plan.
 - Read results carry `revision`; write results carry `receipt.transactionId`,
   the new `revision`, and for schematic writes a `diff`.
 - A revision belongs to one editor tab. A reopened design or another tab
@@ -54,27 +53,43 @@ or severity, or use a smaller `pageSize`. For `pcb_schematic_list_symbols` and
 
 1. Read first: `pcb_schematic_get_summary` (counts, ERC and the sheet placements:
    `sheets[].sheetInstanceId`, which inserts need) and
-   `pcb_board_get_summary`. Use the returned revisions.
+   `pcb_board_get_summary` with a small `pageSize`. Use the returned revisions.
 2. Propose one plan with `pcb_plan_propose`: a `title`, `steps`
-   (`{summary, tools[]}` the user reads), `maxCalls` (all writes the plan may
-   make, up to 500), `expiresInMinutes` (up to 120), `expectedRevision`, and
-   for export the `requirements` below. Use the revision you planned against.
+   (`{summary, tools[]}` the user reads), `maxCalls` (one per batch operation
+   plus other planned writes, up to 500), `expiresInMinutes` (up to 120),
+   `expectedRevision`, and for export the `requirements` below. Use the revision
+   you planned against.
    Keep the title to one line naming what you build or change. Steps are read
    in order; each summary is one line in the approval dialog. A new plan
    returns `planId` with status `pending`. Expiry starts after approval.
+   List `pcb_batch_write` and every inner tool in the steps' `tools`;
+   `PLAN_TOOL_NOT_ALLOWED` names any missing tool.
 3. Tell the user to approve it in the editor tab, then call `pcb_plan_get` with
    `waitSeconds: 30`. Repeat while the status is `pending`. A declined, stopped
    or expired plan stops the work.
 4. Writes in the plan's tools run without further dialogs. A tool outside the
    plan, a spent budget, an expired or stopped plan is refused. One active plan
    per client and design: end it with `pcb_plan_end` before proposing another.
-   Count calls generously; the user can stop the plan at any time. Proposal
-   rate limits also refuse. End the plan when its work is done; applied edits
-   remain, each with its own undo.
+   Proposal rate limits also refuse. End the plan when its work is done;
+   committed transactions remain undoable.
 5. Without a plan, writes that support individual approval raise their own
    dialog. Do not do that for a build.
 
 ## 4. Build a design
+
+After plan approval, build in this order. The per-tool steps below are the
+reference for each operation's `args`.
+
+1. One schematic `pcb_batch_write` with `check: true`: define missing parts
+   first in that same batch, then insert, power, labels, connect, label,
+   no-connect.
+2. Read `pcb_board_get_summary` again with a small `pageSize`: a schematic
+   commit moves the board revision. Use this revision for the board batch.
+3. One board `pcb_batch_write`: outline, sync, placements, stackup, rules,
+   routes.
+4. One pour batch with `check: true`: the copper pour (for example GND on
+   B.Cu), alone.
+5. `pcb_design_save`, then `pcb_board_export_manufacturing` (requirements below).
 
 **Parts.** `pcb_components_search` / `pcb_components_inspect` find library
 parts (insert them by `decisionId`). A part the library lacks is defined once
@@ -84,6 +99,7 @@ through-hole, a courtyard, and `pinToPad`. Its id is
 `inline:<name in lowercase, non-alphanumerics as ->`.
 
 **Schematic.**
+
 1. `pcb_schematic_insert_components`: references, `sheetInstanceId` from the
    summary, `inlinePartId` or `decisionId`, positions, and each part's `value`
    (`"10k"`, `"220R"`), set on insert. Leave room: a wire between two pins must
@@ -108,9 +124,11 @@ through-hole, a courtyard, and `pinToPad`. Its id is
 6. A pin is its embedded name, or its number when the part repeats that name
    (an Arduino Nano's two GND pins are `4` and `29`). An ambiguous name is
    refused with the numbers to use.
-7. `pcb_schematic_list_erc` until it is empty.
+7. Use the batch's ERC counts; page `pcb_schematic_list_erc` and fix findings
+   until clean before building the board.
 
 **Board.**
+
 1. `pcb_board_set_outline` with `rect {x, y, width, height}` or closed segments.
 2. `pcb_board_sync_components` (Update PCB) with no `positions`: new
    footprints land beside the outline, as in the editor, and the receipt warns
@@ -123,10 +141,11 @@ through-hole, a courtyard, and `pinToPad`. Its id is
 5. Route each connection with `pcb_board_route_net` (`fromRef/fromPad`,
    `toRef/toPad`, `layer`, `widthMm`). Use the other layer where routes cross. A
    search that stops short returns `partial` and adds nothing: change the layer
-   or placement, or draw an exact path with `pcb_board_add_track`.
+   or placement, or draw an exact path with `pcb_board_add_track`. A partial
+   route refuses its batch.
 6. `pcb_board_pour_copper_zone` (for example `GND` on `B.Cu`).
-7. `pcb_board_run_drc`: errors, warnings and unconnected items, with schematic
-   parity when the schematic has parts. Fix until it is clean.
+7. Use the batch's DRC counts (with schematic parity when the schematic has
+   parts); page `pcb_board_list_drc` and fix findings until clean.
 
 **Save.** `pcb_design_save` waits until the sheets and the board are durably
 stored and returns `saved` with both revisions, or `timed_out` / `uncertain`
@@ -182,6 +201,7 @@ plans cannot pre-approve it. Call it without `planId`.
   `saved`: it is durably stored. Never claim a save without a `saved` receipt.
 - Inside a plan, writes answer `applied` or `verified`. Call `pcb_design_save`
   after the last edit; only it answers `saved`.
+- Batches add `operations[]` and optional `checks` counts; see Batches below.
 - `uncertain`: the outcome is unknown. Read again; do not resend under a new key.
 - `refused` comes with a reason and usually a message with a valid example. It
   is a normal stop: read the reason, fix the call or the design, and do not
@@ -193,6 +213,36 @@ plans cannot pre-approve it. Call it without `planId`.
 
 These notes supplement the build order above. Use Every call for units,
 admission and revisions, and Observe, then one plan for paging and approval.
+
+### Batches
+
+`pcb_batch_write` takes `{ operations: [{ tool, args }], check }` plus the
+usual write envelope. Use 1 to 100 ordered operations on one document: all
+schematic or all board. Each `args` is exactly the single tool's arguments,
+in millimetres. Later operations see earlier changes. A batch is all or nothing,
+in one transaction with one undo entry.
+
+An approved plan is required (`PLAN_REQUIRED`). Each operation spends one plan
+call; the batch costs no extra call. `PLAN_EXHAUSTED` says how many calls are
+needed and left. A batch refused in the editor has spent its calls.
+
+`pcb_design_save`, `pcb_board_export_manufacturing`, `pcb_design_import_kicad`,
+plan tools and the batch itself cannot be operations (`BATCH_TOOL_NOT_ALLOWED`).
+Mixing schematic and board tools gives `BATCH_MIXED_DOMAINS`. Copper-zone
+tools (pour, refill) go in a batch of their own: mixing them with other tools
+is refused before anything runs (`BATCH_MIXED_ZONE_TOOLS`).
+
+Results have `operations[]` with zero-based `index`, `tool`, `status` (`applied`
+or `noop`) and `summary`. With `check: true`, `checks.erc` has `errors` and
+`warnings`, or `checks.drc` has `errors`, `warnings` and `unconnected` for a board.
+If all operations are `noop`, the batch is refused with `NO_CHANGE`.
+Non-zero counts do not undo the commit; page the read tools for findings.
+The receipt's `revision` is the next `expectedRevision`.
+
+On refusal, `operation.index` is the zero-based operation that failed, with that
+tool's own message. Fix it and resend the WHOLE batch: nothing was applied.
+Whole-call refusals may have no `operation`. For `REQUEST_EXPIRED`
+("after staging K of N"), resend as smaller batches.
 
 ### Read the design
 
