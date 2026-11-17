@@ -3,8 +3,8 @@
 A Claude Code and Codex plugin for [Deltatronix PCB](https://pcb.deltatronix.io). It lets your
 coding agent build and edit a design on the platform, schematic and board, in the Deltatronix PCB
 editor you have open: inline parts, schematic, outline, placement, routing, copper pours, ERC and
-DRC, save, manufacturing export and KiCad import. You approve one plan in the editor; every edit
-is its own undoable transaction with a receipt. It uses your Deltatronix account for PCB access
+DRC, save, manufacturing export and KiCad import. You approve one plan in the editor; each write
+or batch is one undoable transaction with a receipt. It uses your Deltatronix account for PCB access
 and your client's own model for reasoning.
 
 ## Install
@@ -80,7 +80,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.4 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.5 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -89,6 +89,9 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.5 (2026-11-17):** build with `pcb_batch_write`: one schematic batch,
+  one board batch, then save and export; adds plan accounting, checks and
+  refusal recovery guidance (Deltatronix-pcb#4253).
 - **0.2.4 (2026-11-17):** moves guidance and examples from the shortened MCP tool
   descriptions into the skill; tools and arguments are unchanged.
 - **0.2.3 (2026-11-17):** needs the editor and server from the same release.
