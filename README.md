@@ -96,6 +96,8 @@ a row. Please report problems in this repository's issues.
     `pcb_schematic_add_label` take targets (a part and some of its pins), up to 256 pins per
     call, all or nothing; the single-pin shape is gone. `pcb_schematic_insert_components`
     takes each part's `value`.
+  - The skill waits for plan approval with `pcb_plan_get` and `waitSeconds: 30` (repeat while
+    `pending`) instead of polling.
 - **0.2.2 (2026-11-14):** every length and coordinate is in millimetres, in arguments and in
   board read results (fields that were `*Nm` are now `*Mm`; sync positions, regions and
   inline-part symbols are mm). The skill
