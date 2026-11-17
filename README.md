@@ -89,9 +89,13 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
-- **0.2.3 (2026-11-16):** skill only. Inside a plan, writes answer `applied` or `verified`
-  without waiting for the save; call `pcb_design_save` after the last edit, the only planned
-  call that answers `saved`.
+- **0.2.3 (2026-11-17):** needs the editor and server from the same release.
+  - Inside a plan, writes answer `applied` or `verified` without waiting for the save; call
+    `pcb_design_save` after the last edit, the only planned call that answers `saved`.
+  - The pin tools take lists. `pcb_schematic_add_no_connect`, `pcb_schematic_add_power` and
+    `pcb_schematic_add_label` take targets (a part and some of its pins), up to 256 pins per
+    call, all or nothing; the single-pin shape is gone. `pcb_schematic_insert_components`
+    takes each part's `value`.
 - **0.2.2 (2026-11-14):** every length and coordinate is in millimetres, in arguments and in
   board read results (fields that were `*Nm` are now `*Mm`; sync positions, regions and
   inline-part symbols are mm). The skill
