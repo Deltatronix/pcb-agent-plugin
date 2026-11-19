@@ -127,12 +127,20 @@ through-hole, a courtyard, and `pinToPad`. Its id is
    `{"labels": [{"net": "POT", "kind": "global", "targets": [{"reference": "A1",
    "pins": ["A0"]}, {"reference": "RV1", "pins": ["W"]}]}]}`. Or
    `pcb_schematic_connect` for a direct wire, then a label to name it.
-5. `pcb_schematic_add_no_connect` with every unused pin in one call:
+5. Sub-sheets and buses: `pcb_schematic_add_sheet` adds a block under the
+   root (or `sheet`) with its pins, `{"name": "Driver", "pins": ["EN",
+   "D[0..3]"]}`; each pin gets a local label of its name on the parent, and
+   the receipt names the new placement (its path is `/Driver/`). Join the
+   parent's pins with `kind: "local"` labels of the pin names, the sub-sheet's
+   pins (with `sheet: "/Driver/"`) with `kind: "hierarchical"`. A vector net
+   such as `D[0..3]` takes one pin per member in member order, all facing one
+   way, and draws the bus with an entry per pin.
+6. `pcb_schematic_add_no_connect` with every unused pin in one call:
    `{"targets": [{"reference": "A1", "pins": ["D2", "D3", "D4"]}]}`
-6. A pin is its embedded name, or its number when the part repeats that name
+7. A pin is its embedded name, or its number when the part repeats that name
    (an Arduino Nano's two GND pins are `4` and `29`). An ambiguous name is
    refused with the numbers to use.
-7. Use the batch's ERC counts; page `pcb_schematic_list_erc` and fix findings
+8. Use the batch's ERC counts; page `pcb_schematic_list_erc` and fix findings
    until clean before building the board.
 
 **Board.**
@@ -380,16 +388,23 @@ least one target; labels and rails need at least one entry. Each target needs
   manufacturer claims are not accepted.
 - `pcb_schematic_connect`: Connects exactly two actual embedded pins on one
   unique sheet placement. Code resolves native geometry. Cross-sheet,
-  repeated-file, bus edits and unintended joins are unavailable.
+  repeated-file, a path that meets a bus and unintended joins refuse.
 - `pcb_schematic_add_label`: List form:
 
   ```text
   labels [{net, kind, targets: [{reference, pins, sheet?}]}]
   ```
 
-  Labels go on the connection point or a 2.54 mm stub wire when that point is
-  taken. Matching-net pins use the skip rule above. Missing pins, conflicting
-  net names and unintended joins refuse.
+  Kind is `local`, `global` or `hierarchical`. Labels go on the connection
+  point or a 2.54 mm stub wire when that point is taken. A bus net
+  (`D[0..3]`) takes exactly one pin per member, in order, all facing one way:
+  a stub per pin ends on one bus beside them (that end is the bus entry), with
+  member labels and the bus label of that kind. Matching-net pins use the skip
+  rule above. Missing pins, conflicting net names and unintended joins refuse.
+- `pcb_schematic_add_sheet`: `{name, pins, sheet?}`. A hierarchical sub-sheet
+  under `sheet` (default the root), its box placed by code, one sheet pin per
+  name (bus names allowed), each labelled locally on the parent (a bus pin on
+  a short bus stub). A repeated parent file or a taken name refuses.
 - `pcb_schematic_add_power`: List form:
 
   ```text
