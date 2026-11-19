@@ -80,7 +80,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.5 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.6 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -89,6 +89,8 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.6 (2026-11-19):** toolboxes for clients with a tool limit: `list_toolboxes`,
+  `open_toolbox` and `close_toolbox` (Deltatronix-pcb#4192). Needs the server from the same release.
 - **0.2.5 (2026-11-17):** build with `pcb_batch_write`: one schematic batch,
   one board batch and one pour batch, then save and export; adds plan accounting, checks and
   refusal recovery guidance (Deltatronix-pcb#4253).
