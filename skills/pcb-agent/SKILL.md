@@ -20,6 +20,14 @@ transaction with a receipt. Work on the platform, never in local KiCad files.
 3. If a tool answers `unavailable` with "open the design", ask the user to open
    the tab and start the runner. "The editor and server tool lists differ" means
    the tab is stale: ask the user to reload it.
+4. Toolboxes, for clients that limit how many tools they show. The `pcb_board_*`,
+   `pcb_schematic_*` and parts tools (`pcb_part_*`, `pcb_components_*`,
+   `pcb_footprints_*`) sit in the `board`, `schematic` and `parts` toolboxes; plan,
+   save, import and batch tools are always listed. All toolboxes start open. If a
+   `pcb_*` tool you need is missing from your tools, call `list_toolboxes`, then
+   `close_toolbox` the ones this task does not need and `open_toolbox` the one it
+   does. The choice is kept for your client; a client that does not refresh its
+   list on `notifications/tools/list_changed` shows it in its next session.
 
 ## 2. Every call
 
