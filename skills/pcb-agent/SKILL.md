@@ -72,6 +72,14 @@ or severity, or use a smaller `pageSize`. For `pcb_schematic_list_symbols` and
    returns `planId` with status `pending`. Expiry starts after approval.
    List `pcb_batch_write` and every inner tool in the steps' `tools`;
    `PLAN_TOOL_NOT_ALLOWED` names any missing tool.
+   The result's `skills` are the Deltatronix engineering skills pinned for this
+   plan: the coordinator's and one per kind of planned write (schematic,
+   components, placement, routing, zones, final review). Follow each available
+   skill's `prompt` for the work its `applicability` names, in addition to this
+   skill; where they conflict on a tool's mechanics, this skill wins. A skill
+   with `availability: "unavailable"` has no text yet: say so, do not invent
+   its rules. `pcb_plan_get` lists the same pinned versions under
+   `plan.skills`; they do not change during the plan.
 3. Tell the user to approve it in the editor tab, then call `pcb_plan_get` with
    `waitSeconds: 30`. Repeat while the status is `pending`. A declined, stopped
    or expired plan stops the work.
