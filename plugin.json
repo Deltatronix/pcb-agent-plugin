@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "pcb-agent",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Build, check, save and export a Deltatronix PCB design in its open editor under one approved plan.",
   "author": {
     "name": "Deltatronix"
@@ -12,9 +12,25 @@
       "interface": {
         "displayName": "Deltatronix PCB agent",
         "shortDescription": "Build and edit PCB designs under one approved plan.",
-        "developerName": "Deltatronix"
+        "developerName": "Deltatronix",
+        "longDescription": "Drives the Deltatronix PCB editor you have open: reads the schematic and board, proposes one plan you approve in the editor, then draws, places, routes, pours, checks ERC and DRC, saves and exports manufacturing files. Each write is one undoable transaction with a receipt.",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive",
+          "Write"
+        ],
+        "websiteURL": "https://pcb.deltatronix.io",
+        "privacyPolicyURL": "https://deltatronix.io/privacy",
+        "termsOfServiceURL": "https://deltatronix.io/terms",
+        "defaultPrompt": [
+          "Summarize the open design's schematic and board.",
+          "Run DRC and explain each violation.",
+          "Add a power LED with a series resistor."
+        ]
       },
       "onboardingSkill": "./skills/pcb-agent/SKILL.md"
     }
-  }
+  },
+  "homepage": "https://github.com/Deltatronix/pcb-agent-plugin",
+  "repository": "https://github.com/Deltatronix/pcb-agent-plugin"
 }

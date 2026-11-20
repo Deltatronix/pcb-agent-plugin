@@ -47,8 +47,20 @@ default_tools_approval_mode = "writes"
 Never paste API keys, passwords or tokens into chat. Every tool needs OAuth sign-in, reads
 included; platform cookies do not authenticate MCP calls.
 
-Other clients that support remote MCP servers with OAuth (Claude Desktop, ChatGPT custom
-connectors) can use the same server URL: `https://api.deltatronix.io/mcp`.
+### Claude Desktop, claude.ai and ChatGPT
+
+These clients connect to the same server by URL. There is no plugin to install, so the skill
+in this repository is not loaded; the server's own instructions still apply.
+
+- Claude Desktop and claude.ai: Settings, Connectors, Add custom connector, URL
+  `https://api.deltatronix.io/mcp`. On Team and Enterprise plans an owner adds it for the
+  organization. Connect, then sign in with your Deltatronix account.
+- ChatGPT: in Settings, turn on developer mode, then add a custom MCP connector with the
+  URL `https://api.deltatronix.io/mcp` and OAuth authentication. Sign in when asked.
+
+The server publishes OAuth discovery for these clients: protected-resource metadata, client ID
+metadata documents, dynamic client registration and PKCE (S256). Steps 2 and 3 above apply
+unchanged: open the design and start the runner, then approve the plan in the editor tab.
 
 ## What it can do
 
@@ -80,7 +92,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.7 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.8 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -89,6 +101,9 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.8 (2026-11-20):** listing metadata only: privacy policy URL for Claude Code; long
+  description, category, website, privacy and terms URLs and starter prompts for Codex. Connection
+  steps for Claude Desktop, claude.ai and ChatGPT. Tools, skill and server are unchanged.
 - **0.2.7 (2026-11-19):** sub-sheets, hierarchical labels and buses: `pcb_schematic_add_sheet`,
   and `pcb_schematic_add_label` with `kind: "hierarchical"` and vector bus nets
   (Deltatronix-pcb#4187). Needs the server from the same release.
@@ -124,6 +139,17 @@ a row. Please report problems in this repository's issues.
   build order and the export requirements.
 - **0.1.0 (2026-11-11):** first public release. Shared skill, Claude Code and Codex manifests,
   and the `pcb` MCP server.
+
+## Releasing
+
+1. Bump `version` in `.claude-plugin/plugin.json`, `plugin.json` and the Claude marketplace
+   entry, and add a changelog line. Merge.
+2. In a second pull request, pin both marketplace entries (`.claude-plugin/marketplace.json`
+   and `.agents/plugins/marketplace.json`) to the merged commit:
+   `{"source": "url", "url": "https://github.com/Deltatronix/pcb-agent-plugin.git", "sha": "<merge sha>"}`.
+   Installs then fetch exactly that commit, whatever lands on `main` later.
+3. Tag the pinned content commit `v<version>` and publish a GitHub release with the changelog
+   line. Plugin names never change.
 
 ## License
 
