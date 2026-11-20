@@ -92,7 +92,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.8 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.9 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -101,6 +101,10 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.9 (2026-11-20):** skill only. `pcb_plan_propose` returns the engineering skills it
+  pinned for the plan (`skills`); the skill tells the client to follow them and to report an
+  unavailable one rather than invent its rules (Deltatronix-pcb#3392). Needs the server from
+  the same release; with an older server the result has no `skills` and nothing changes.
 - **0.2.8 (2026-11-20):** listing metadata only: privacy policy URL for Claude Code; long
   description, category, website, privacy and terms URLs and starter prompts for Codex. Connection
   steps for Claude Desktop, claude.ai and ChatGPT. Tools, skill and server are unchanged.
