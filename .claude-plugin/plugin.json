@@ -1,11 +1,12 @@
 {
   "name": "pcb-agent",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Build, check, save and export a Deltatronix PCB design in its open editor under one approved plan.",
   "author": {
     "name": "Deltatronix"
   },
   "license": "MIT",
   "homepage": "https://github.com/Deltatronix/pcb-agent-plugin",
-  "repository": "https://github.com/Deltatronix/pcb-agent-plugin"
+  "repository": "https://github.com/Deltatronix/pcb-agent-plugin",
+  "privacyPolicyUrl": "https://deltatronix.io/privacy"
 }
