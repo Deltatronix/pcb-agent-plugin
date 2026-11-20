@@ -1,11 +1,20 @@
 {
   "name": "deltatronix-pcb",
-  "interface": { "displayName": "Deltatronix PCB" },
+  "interface": {
+    "displayName": "Deltatronix PCB"
+  },
   "plugins": [
     {
       "name": "pcb-agent",
-      "source": { "source": "local", "path": "./" },
-      "policy": { "installation": "AVAILABLE", "authentication": "ON_USE" },
+      "source": {
+        "source": "url",
+        "url": "https://github.com/Deltatronix/pcb-agent-plugin.git",
+        "sha": "4ff4456b3576603cdaa98acb7e71780cf4997048"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
       "category": "Productivity"
     }
   ]
