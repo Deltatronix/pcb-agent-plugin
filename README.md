@@ -88,7 +88,8 @@ Catalog version 2: every call passes `designId` and `catalogVersion: 2`.
   another granted design after you approve; `pcb_design_merge` appends a granted design's sheets
   (always asks); `pcb_design_rename` renames the design.
 - **Editor agent:** `pcb_task_run` hands a goal to the engineering agent in the editor's Agent
-  panel, which you approve there.
+  panel, which you approve there. A task that runs past 40 seconds answers a `taskId` to poll or
+  cancel.
 
 Each write takes the current revision as `expectedRevision` and a new UUID `idempotencyKey`;
 reuse a key only for an identical retry. `applied` confirms the editor applied the change,
@@ -98,7 +99,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.10 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.11 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -107,6 +108,11 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.11 (2026-11-21):** skill only. `pcb_task_run` waits up to 40 seconds per call and then
+  answers `running` with a `taskId`: the skill covers polling with `taskId`, `cancel: true`, what
+  `running` and `progress` mean, the 60-second silent-tab limit, and that a revoked grant ends
+  polling (Deltatronix-pcb#4192). An unknown, expired or pre-restart `taskId` refuses
+  `TASK_HANDLE_UNKNOWN`; an older server refuses it without that reason.
 - **0.2.10 (2026-11-21):** skill only. Covers the design tools (`pcb_designs_list`,
   `pcb_design_create`, `pcb_design_open`, `pcb_design_merge`, `pcb_design_rename`), `pcb_task_run`,
   and `pcb_schematic_add_sheet` adding pins to an existing sub-sheet or placing a sheet file again
