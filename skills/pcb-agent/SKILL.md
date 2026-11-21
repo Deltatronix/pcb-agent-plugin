@@ -272,12 +272,36 @@ only when the user asks for that; otherwise build with the tools above. Pass
 optionally `approvedBrief` items. No plan or `catalogVersion`. It needs the
 `pcb:write` scope and a grant with edits allowed, and the user must have that
 design's engineering task open in the Agent panel; the editor asks the user to
-agree before it edits. It waits up to 5 minutes and answers `delivered` with
-`result` (status, new revision, pinned skill versions, checkpoints): references
-and hashes, not design data, so read the design afterwards. `unavailable`
-carries `designUrl` to open; `refused` says what the panel needs; `busy`,
-`cancelled` and `timed_out` report no outcome; the editor may have changed
-the design, so read it before retrying.
+agree before it edits.
+
+One call waits up to 40 seconds. A task that ends in that time answers
+`delivered` with `result` (status, new revision, pinned skill versions,
+checkpoints): references and hashes, not design data, so read the design
+afterwards. A task still working answers `running` with a `taskId` and, once
+the editor has reported, `progress` in the same shape as `result`. `running` is
+not an error and not an outcome: the editor's agent is still planning, waiting
+for the user to agree (`progress.status` `awaiting_agreement`), editing or
+verifying. Keep the `taskId`.
+
+- **Poll**: call again with only `designId` and `taskId`. It waits up to 40
+  seconds again and answers `running` or the final answer. Poll until the
+  status is something else; do not start the task again meanwhile.
+- **Cancel**: `designId`, `taskId` and `cancel: true` stop the task and answer
+  `cancelled`, or the final answer if it had already ended. Stopping your own
+  first call before it answers a `taskId` also cancels the task.
+- The task runs while the user's editor tab is open; a tab that stops
+  reporting for 60 seconds ends it as `timed_out`.
+- A finished answer stays readable by its `taskId` for 10 minutes.
+- The grant is checked on every call, so revoking it, or its expiry, ends
+  polling: the call refuses `GRANT_REVOKED` or `GRANT_EXPIRED` and the outcome
+  is not readable by `taskId` any more. Read the design once access is back.
+- `refused` with `TASK_HANDLE_UNKNOWN`: the `taskId` expired, belongs to
+  another client or design, or the server restarted, which ends the task. Read
+  the design, then run the task again if it is still needed.
+
+`unavailable` carries `designUrl` to open; `refused` says what the panel
+needs; `busy`, `cancelled` and `timed_out` report no outcome; the editor may
+have changed the design, so read it before retrying.
 
 ## 7. Results
 
