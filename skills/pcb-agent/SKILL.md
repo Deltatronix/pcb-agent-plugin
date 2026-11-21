@@ -243,11 +243,11 @@ findings, what it could not verify). Fix those and export again.
   replaces the design's schematic and board with a KiCad project
   (`.kicad_pro`, `.kicad_sch` including sub-sheets, `.kicad_pcb`, `.kicad_dru`,
   `fp-lib-table`, and `sym-lib-table`; 4 MiB per call); `mode: "append"` adds
-  the project's sheets beside this design's and leaves the board alone. Use
+  the project's sheets, and its board's items, beside this design's. Use
   project-relative paths. This matches File > Open KiCad Project Folder and
   returns an import summary and new schematic/board revisions.
 - **Another design (merge):** `{"mode": "append", "fromDesignId": "..."}`
-  appends that design's sheets to this design's schematic. A design is only
+  appends that design's sheets and board items to this design. A design is only
   ever appended (`mode: "replace"` with `fromDesignId` is refused), and it
   takes no `files`. The source design must be granted to your client too
   (`pcb_designs_list`); otherwise it refuses `DESIGN_NOT_GRANTED` with the
@@ -257,10 +257,13 @@ Either way, every import asks the user in its own editor dialog, even inside a
 plan: plans cannot pre-approve it, so call it without `planId` (with one it
 refuses `PLAN_TOOL_NOT_ALLOWED`), with the usual `expectedRevision`
 (schematic) and `idempotencyKey`. Undo cannot take it back. An append never
-replaces anything here and does not change the board: net classes and
-variants join by name, and ids already in the design get new ids. Annotate if
-references repeat, sync the board afterwards if the parts belong on it, and
-read the schematic summary again.
+replaces anything here: ids already in the design get new ids; net classes,
+their assignments, bus aliases and variants join by name, this design's
+rules winning where a name is taken; ERC settings stay this design's (differing
+rules are listed in the warnings); the source board's footprints, tracks and
+zones land beside this board on the merged nets, without its outline or board
+setup. Annotate if references repeat, sync the board, and read the schematic
+and board summaries again.
 
 **Rename.** `pcb_design_rename` with `{"name": "Dimmer rev B"}`, the
 schematic `expectedRevision` and a new `idempotencyKey`. The name is saved at once and Undo cannot take
