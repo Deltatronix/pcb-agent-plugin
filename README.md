@@ -81,12 +81,12 @@ Catalog version 2: every call passes `designId` and `catalogVersion: 2`.
   durably stored. `pcb_board_export_manufacturing` runs the final review and stores a ZIP of
   Gerbers, drill, position and BOM files as a design asset, returning a reference and a
   short-lived URL, never file bytes.
-- **Import:** `pcb_design_import_kicad` replaces the design with a KiCad project's text files.
+- **Import:** `pcb_design_import_kicad` replaces the design with a KiCad project's text files,
+  appends a KiCad project's sheets, or merges another granted design's sheets (`fromDesignId`).
   It always asks you in the editor, even inside a plan.
 - **Designs:** `pcb_designs_list` lists the designs your client is granted; `pcb_design_create`
   makes an empty design granted to that client only; `pcb_design_open` moves the connected tab to
-  another granted design after you approve; `pcb_design_merge` appends a granted design's sheets
-  (always asks); `pcb_design_rename` renames the design.
+  another granted design after you approve; `pcb_design_rename` renames the design.
 - **Editor agent:** `pcb_task_run` hands a goal to the engineering agent in the editor's Agent
   panel, which you approve there. A task that runs past 40 seconds answers a `taskId` to poll or
   cancel.
@@ -99,7 +99,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.12 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.13 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -108,6 +108,10 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.13 (2026-11-21):** skill only. `pcb_design_merge` is folded into `pcb_design_import_kicad`:
+  merge another design with `{"mode": "append", "fromDesignId": "..."}`, behind the same
+  approval as any import. The skill also documents KiCad `mode: "append"`. Ship with the server
+  that drops `pcb_design_merge` (Deltatronix-pcb#4186).
 - **0.2.12 (2026-11-21):** skill only. A `pcb_task_run` task whose editor tab stops reporting
   now ends as `timed_out` after 150 seconds, not 60 (Deltatronix-pcb#4192). Needs the server
   from the same release; an older server still ends it after 60 seconds.
