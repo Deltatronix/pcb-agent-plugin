@@ -290,7 +290,7 @@ verifying. Keep the `taskId`.
   `cancelled`, or the final answer if it had already ended. Stopping your own
   first call before it answers a `taskId` also cancels the task.
 - The task runs while the user's editor tab is open; a tab that stops
-  reporting for 60 seconds ends it as `timed_out`.
+  reporting for 150 seconds ends it as `timed_out`.
 - A finished answer stays readable by its `taskId` for 10 minutes.
 - The grant is checked on every call, so revoking it, or its expiry, ends
   polling: the call refuses `GRANT_REVOKED` or `GRANT_EXPIRED` and the outcome

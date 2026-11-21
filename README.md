@@ -99,7 +99,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.11 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.12 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -108,6 +108,9 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.12 (2026-11-21):** skill only. A `pcb_task_run` task whose editor tab stops reporting
+  now ends as `timed_out` after 150 seconds, not 60 (Deltatronix-pcb#4192). Needs the server
+  from the same release; an older server still ends it after 60 seconds.
 - **0.2.11 (2026-11-21):** skill only. `pcb_task_run` waits up to 40 seconds per call and then
   answers `running` with a `taskId`: the skill covers polling with `taskId`, `cancel: true`, what
   `running` and `progress` mean, the 60-second silent-tab limit, and that a revoked grant ends
