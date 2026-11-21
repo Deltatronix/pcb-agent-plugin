@@ -83,6 +83,12 @@ Catalog version 2: every call passes `designId` and `catalogVersion: 2`.
   short-lived URL, never file bytes.
 - **Import:** `pcb_design_import_kicad` replaces the design with a KiCad project's text files.
   It always asks you in the editor, even inside a plan.
+- **Designs:** `pcb_designs_list` lists the designs your client is granted; `pcb_design_create`
+  makes an empty design granted to that client only; `pcb_design_open` moves the connected tab to
+  another granted design after you approve; `pcb_design_merge` appends a granted design's sheets
+  (always asks); `pcb_design_rename` renames the design.
+- **Editor agent:** `pcb_task_run` hands a goal to the engineering agent in the editor's Agent
+  panel, which you approve there.
 
 Each write takes the current revision as `expectedRevision` and a new UUID `idempotencyKey`;
 reuse a key only for an identical retry. `applied` confirms the editor applied the change,
@@ -92,7 +98,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.9 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.10 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -101,6 +107,10 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.10 (2026-11-21):** skill only. Covers the design tools (`pcb_designs_list`,
+  `pcb_design_create`, `pcb_design_open`, `pcb_design_merge`, `pcb_design_rename`), `pcb_task_run`,
+  and `pcb_schematic_add_sheet` adding pins to an existing sub-sheet or placing a sheet file again
+  (Deltatronix-pcb#3403, #4192, #3397). The server already serves these tools.
 - **0.2.9 (2026-11-20):** skill only. `pcb_plan_propose` returns the engineering skills it
   pinned for the plan (`skills`); the skill tells the client to follow them and to report an
   unavailable one rather than invent its rules (Deltatronix-pcb#3392). Needs the server from

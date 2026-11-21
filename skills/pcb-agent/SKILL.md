@@ -1,6 +1,6 @@
 ---
 name: pcb-agent
-description: Build, edit, check, save and export a Deltatronix PCB design (schematic and board) through the connected PCB editor, under one plan the user approves. Use for any Deltatronix design work - reading a design, drawing a schematic, defining a missing part, placing, routing, pouring, DRC, saving, exporting manufacturing files or importing a KiCad project.
+description: Build, edit, check, save and export a Deltatronix PCB design (schematic and board) through the connected PCB editor, under one plan the user approves. Use for any Deltatronix design work - listing, creating, opening, renaming or merging designs, reading a design, drawing a schematic, defining a missing part, placing, routing, pouring, DRC, saving, exporting manufacturing files or importing a KiCad project.
 ---
 
 # PCB agent
@@ -20,10 +20,31 @@ transaction with a receipt. Work on the platform, never in local KiCad files.
 3. If a tool answers `unavailable` with "open the design", ask the user to open
    the tab and start the runner. "The editor and server tool lists differ" means
    the tab is stale: ask the user to reload it.
-4. Toolboxes, for clients that limit how many tools they show. The `pcb_board_*`,
+4. Which design: `pcb_designs_list` (`{}`) lists the designs your client is
+   granted, with `designId`, names, `allowWrite` and `editorUrl`. Pass that
+   `designId`. A design missing from the list is not granted to you; only the
+   user can grant it, in that design's Agent panel.
+5. A new design: `pcb_design_create` with `name` and exactly one of `projectId`
+   (a project the user owns, from `pcb_designs_list`) or `projectName` (makes a
+   new project). It needs the `pcb:write` scope, raises no dialog and needs no
+   plan. The new empty design is granted, with edits allowed, to your client
+   only, never to other clients. It answers `saved` with `designId` and
+   `editorUrl`; no editor has it open yet (next item).
+6. Another design in the connected tab: `pcb_design_open` with `designId`. It
+   works only for a design already granted to your client. Otherwise it
+   refuses `DESIGN_NOT_GRANTED` with the link where the user grants your client:
+   pass that link on and stop, do not retry. When a tab is connected for one of
+   your other granted designs, the user approves the move in that tab (the
+   design it leaves keeps its edits), and the answer `observed` means the new
+   design is open and connected. `NO_CONNECTED_EDITOR`: no tab is connected;
+   ask the user to open `editorUrl` and connect it. "has not connected it yet":
+   call `pcb_design_open` again shortly. These three tools take only the
+   arguments named here, no `catalogVersion` or revision.
+7. Toolboxes, for clients that limit how many tools they show. The `pcb_board_*`,
    `pcb_schematic_*` and parts tools (`pcb_part_*`, `pcb_components_*`,
-   `pcb_footprints_*`) sit in the `board`, `schematic` and `parts` toolboxes; plan,
-   save, import and batch tools are always listed. All toolboxes start open. If a
+   `pcb_footprints_*`) sit in the `board`, `schematic` and `parts` toolboxes;
+   plan, design (`pcb_design_*`, `pcb_designs_list`), task and batch tools are
+   always listed. All toolboxes start open. If a
    `pcb_*` tool you need is missing from your tools, call `list_toolboxes`, then
    `close_toolbox` the ones this task does not need and `open_toolbox` the one it
    does. The choice is kept for your client; a client that does not refresh its
@@ -31,8 +52,8 @@ transaction with a receipt. Work on the platform, never in local KiCad files.
 
 ## 2. Every call
 
-- The server instructions now only say "Deltatronix PCB editor tools. Follow the
-  pcb-agent skill." This skill is the place for the tool rules and examples.
+- The server instructions only say "Deltatronix PCB tools; follow the pcb-agent
+  skill." This skill is the place for the tool rules and examples.
 - Every length and coordinate in arguments and results is in millimetres. An
   `Mm` suffix names the unit; unsuffixed coordinates such as `x` and `y` are
   millimetres too. Reads return `units: "mm"`, so a position you read can be
@@ -142,7 +163,12 @@ through-hole, a courtyard, and `pinToPad`. Its id is
    parent's pins with `kind: "local"` labels of the pin names, the sub-sheet's
    pins (with `sheet: "/Driver/"`) with `kind: "hierarchical"`. A vector net
    such as `D[0..3]` takes one pin per member in member order, all facing one
-   way, and draws the bus with an entry per pin.
+   way, and draws the bus with an entry per pin. The same call with the name of
+   a sheet already on the parent adds the pins it lacks. `file` (an existing
+   sub-sheet's placement id, file id or path such as `/Driver/`) places that
+   file again under the new `name`, its pins from the file's hierarchical
+   labels; then `pcb_schematic_annotate` with `fill`, since its parts arrive
+   unnumbered, and tools that edit that file refuse from then on.
 6. `pcb_schematic_add_no_connect` with every unused pin in one call:
    `{"targets": [{"reference": "A1", "pins": ["D2", "D3", "D4"]}]}`
 7. A pin is its embedded name, or its number when the part repeats that name
@@ -209,7 +235,7 @@ export again. A plan's requirements cannot be added after approval.
 A `REVIEW_NOT_READY` refusal lists what blocks it (unmet requirements, critical
 findings, what it could not verify). Fix those and export again.
 
-## 5. Import a KiCad project
+## 5. Import, merge or rename
 
 `pcb_design_import_kicad` with `mode: "replace"` and `files: [{path, text}]`
 replaces the design's schematic and board with a KiCad project (`.kicad_pro`,
@@ -219,7 +245,41 @@ File > Open KiCad Project Folder and returns an import summary and new
 schematic/board revisions. Every import receives separate editor approval;
 plans cannot pre-approve it. Call it without `planId`.
 
-## 6. Results
+**Merge another design.** `pcb_design_merge` with `{"fromDesignId": "..."}`
+appends that design's sheets to this design's schematic. It never replaces
+anything here, and the board is not changed (sync it afterwards if the parts
+belong on it). Like an import it always asks the user in its own dialog,
+even inside a plan: call it without `planId` (with one it refuses
+`PLAN_TOOL_NOT_ALLOWED`), with the usual `expectedRevision` (schematic) and
+`idempotencyKey`. Undo cannot take it back. The source design must be granted
+to your client too (`pcb_designs_list`); otherwise it refuses
+`DESIGN_NOT_GRANTED` with the link where the user grants it. It cannot merge a
+design into itself. Read the schematic summary again afterwards.
+
+**Rename.** `pcb_design_rename` with `{"name": "Dimmer rev B"}`, the
+schematic `expectedRevision` and a new `idempotencyKey`. The name is saved at once and Undo cannot take
+it back, so it asks the user in its own dialog unless an approved plan lists
+it. It answers `saved`, or refuses `RENAME_FAILED` (read-only, changed
+elsewhere, or a name the server refused).
+
+## 6. Hand a task to the editor's agent
+
+`pcb_task_run` gives a goal to the engineering agent in the user's Agent panel,
+which works with the editor's own model and skills instead of yours. Use it
+only when the user asks for that; otherwise build with the tools above. Pass
+`designId`, `domainId` (`pcb-schematic` or `pcb-board`), the domain's current
+`expectedRevision`, `goal` (one plain request, up to 4096 characters) and
+optionally `approvedBrief` items. No plan or `catalogVersion`. It needs the
+`pcb:write` scope and a grant with edits allowed, and the user must have that
+design's engineering task open in the Agent panel; the editor asks the user to
+agree before it edits. It waits up to 5 minutes and answers `delivered` with
+`result` (status, new revision, pinned skill versions, checkpoints): references
+and hashes, not design data, so read the design afterwards. `unavailable`
+carries `designUrl` to open; `refused` says what the panel needs; `busy`,
+`cancelled` and `timed_out` report no outcome; the editor may have changed
+the design, so read it before retrying.
+
+## 7. Results
 
 - `applied`: the editor applied the change. `verified`: it also checked it.
   `saved`: it is durably stored. Never claim a save without a `saved` receipt.
@@ -233,7 +293,7 @@ plans cannot pre-approve it. Call it without `planId`.
 - Report what you built from read-backs (ERC, DRC, nets, footprints), not from
   your own plan.
 
-## 7. Tool notes
+## 8. Tool notes
 
 These notes supplement the build order above. Use Every call for units,
 admission and revisions, and Observe, then one plan for paging and approval.
@@ -409,10 +469,13 @@ least one target; labels and rails need at least one entry. Each target needs
   a stub per pin ends on one bus beside them (that end is the bus entry), with
   member labels and the bus label of that kind. Matching-net pins use the skip
   rule above. Missing pins, conflicting net names and unintended joins refuse.
-- `pcb_schematic_add_sheet`: `{name, pins, sheet?}`. A hierarchical sub-sheet
-  under `sheet` (default the root), its box placed by code, one sheet pin per
-  name (bus names allowed), each labelled locally on the parent (a bus pin on
-  a short bus stub). A repeated parent file or a taken name refuses.
+- `pcb_schematic_add_sheet`: `{name, pins?, sheet?, file?}`. A hierarchical
+  sub-sheet under `sheet` (default the root), its box placed by code, one
+  sheet pin per name (bus names allowed), each labelled locally on the parent
+  (a bus pin on a short bus stub). An existing `name` with `pins` adds the
+  missing pins; `file` places an existing sub-sheet again (Schematic step 5).
+  A parent whose file is placed more than once, a taken name without `pins`,
+  or a `file` that names no single sub-sheet refuses.
 - `pcb_schematic_add_power`: List form:
 
   ```text
@@ -512,12 +575,15 @@ least one target; labels and rails need at least one entry. Each target needs
   Continue with `pcb_board_list_drc` and the returned cursor. The run never
   edits; refill pours first. See Board step 7 for schematic parity.
 
-### Save, export or import
+### Designs, save, export and import
 
 - `pcb_design_save`: See Save for durable checkpoints and approval, and Every
   call for revision tokens across tabs and sessions.
 - `pcb_board_export_manufacturing`: See Export for required plan facts,
   refusals and returned archive metadata; see Approve the work for final-review
   selectors and artifact selection, and Board step 3 for the explicit stackup.
-- `pcb_design_import_kicad`: See Import a KiCad project for files, size limits,
-  results and separate editor approval.
+- `pcb_design_import_kicad`: See Import, merge or rename for files, size
+  limits, results and separate editor approval.
+- `pcb_design_merge`, `pcb_design_rename`: See Import, merge or rename.
+- `pcb_designs_list`, `pcb_design_create`, `pcb_design_open`: See Connect.
+- `pcb_task_run`: See Hand a task to the editor's agent.
