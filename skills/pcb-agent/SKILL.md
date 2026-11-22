@@ -237,24 +237,33 @@ findings, what it could not verify). Fix those and export again.
 
 ## 5. Import, merge or rename
 
-`pcb_design_import_kicad` with `mode: "replace"` and `files: [{path, text}]`
-replaces the design's schematic and board with a KiCad project (`.kicad_pro`,
-`.kicad_sch` including sub-sheets, `.kicad_pcb`, `.kicad_dru`, `fp-lib-table`,
-and `sym-lib-table`; 4 MiB in all). Use project-relative paths. This matches
-File > Open KiCad Project Folder and returns an import summary and new
-schematic/board revisions. Every import receives separate editor approval;
-plans cannot pre-approve it. Call it without `planId`.
+`pcb_design_import_kicad` imports from one of two sources:
 
-**Merge another design.** `pcb_design_merge` with `{"fromDesignId": "..."}`
-appends that design's sheets to this design's schematic. It never replaces
-anything here, and the board is not changed (sync it afterwards if the parts
-belong on it). Like an import it always asks the user in its own dialog,
-even inside a plan: call it without `planId` (with one it refuses
-`PLAN_TOOL_NOT_ALLOWED`), with the usual `expectedRevision` (schematic) and
-`idempotencyKey`. Undo cannot take it back. The source design must be granted
-to your client too (`pcb_designs_list`); otherwise it refuses
-`DESIGN_NOT_GRANTED` with the link where the user grants it. It cannot merge a
-design into itself. Read the schematic summary again afterwards.
+- **KiCad files:** `mode` and `files: [{path, text}]`. `mode: "replace"`
+  replaces the design's schematic and board with a KiCad project
+  (`.kicad_pro`, `.kicad_sch` including sub-sheets, `.kicad_pcb`, `.kicad_dru`,
+  `fp-lib-table`, and `sym-lib-table`; 4 MiB per call); `mode: "append"` adds
+  the project's sheets, and its board's items, beside this design's. Use
+  project-relative paths. This matches File > Open KiCad Project Folder and
+  returns an import summary and new schematic/board revisions.
+- **Another design (merge):** `{"mode": "append", "fromDesignId": "..."}`
+  appends that design's sheets and board items to this design. A design is only
+  ever appended (`mode: "replace"` with `fromDesignId` is refused), and it
+  takes no `files`. The source design must be granted to your client too
+  (`pcb_designs_list`); otherwise it refuses `DESIGN_NOT_GRANTED` with the
+  link where the user grants it. It cannot merge a design into itself.
+
+Either way, every import asks the user in its own editor dialog, even inside a
+plan: plans cannot pre-approve it, so call it without `planId` (with one it
+refuses `PLAN_TOOL_NOT_ALLOWED`), with the usual `expectedRevision`
+(schematic) and `idempotencyKey`. Undo cannot take it back. An append never
+replaces anything here: ids already in the design get new ids; net classes,
+their assignments, bus aliases and variants join by name, this design's
+rules winning where a name is taken; ERC settings stay this design's (differing
+rules are listed in the warnings); the source board's footprints, tracks and
+zones land beside this board on the merged nets, without its outline or board
+setup. Annotate if references repeat, sync the board, and read the schematic
+and board summaries again.
 
 **Rename.** `pcb_design_rename` with `{"name": "Dimmer rev B"}`, the
 schematic `expectedRevision` and a new `idempotencyKey`. The name is saved at once and Undo cannot take
@@ -606,8 +615,9 @@ least one target; labels and rails need at least one entry. Each target needs
 - `pcb_board_export_manufacturing`: See Export for required plan facts,
   refusals and returned archive metadata; see Approve the work for final-review
   selectors and artifact selection, and Board step 3 for the explicit stackup.
-- `pcb_design_import_kicad`: See Import, merge or rename for files, size
-  limits, results and separate editor approval.
-- `pcb_design_merge`, `pcb_design_rename`: See Import, merge or rename.
+- `pcb_design_import_kicad`: See Import, merge or rename for its two sources
+  (KiCad files, or another design to merge), size limits, results and
+  separate editor approval.
+- `pcb_design_rename`: See Import, merge or rename.
 - `pcb_designs_list`, `pcb_design_create`, `pcb_design_open`: See Connect.
 - `pcb_task_run`: See Hand a task to the editor's agent.
