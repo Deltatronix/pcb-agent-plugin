@@ -99,7 +99,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.13 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.14 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -108,6 +108,11 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.14 (2026-11-22):** skill only. The plan step no longer tells clients to send
+  `expectedRevision` to `pcb_plan_propose`, whose schema refuses it, so a plugin client's first
+  plan call no longer fails validation. A final review too large to list is paged with
+  `pcb_board_get_final_review`. `scripts/check-skill.sh` keeps the plan step free of
+  `expectedRevision` (Deltatronix-pcb#4145, #4208, #3406).
 - **0.2.13 (2026-11-21):** skill only. `pcb_design_merge` is folded into `pcb_design_import_kicad`:
   merge another design with `{"mode": "append", "fromDesignId": "..."}`, behind the same
   approval as any import. The skill also documents KiCad `mode: "append"`. Ship with the server
@@ -170,7 +175,8 @@ a row. Please report problems in this repository's issues.
 ## Releasing
 
 1. Bump `version` in `.claude-plugin/plugin.json`, `plugin.json` and the Claude marketplace
-   entry, and add a changelog line. Merge.
+   entry, and add a changelog line. Run `scripts/check-skill.sh` and
+   `claude plugin validate --strict .`. Merge.
 2. In a second pull request, pin both marketplace entries (`.claude-plugin/marketplace.json`
    and `.agents/plugins/marketplace.json`) to the merged commit:
    `{"source": "url", "url": "https://github.com/Deltatronix/pcb-agent-plugin.git", "sha": "<merge sha>"}`.
