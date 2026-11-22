@@ -99,7 +99,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.14 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.15 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -108,6 +108,11 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.15 (2026-11-23):** skill only. An approved plan that checks or exports pins extra
+  expertise from the design's brief (thermal, physics, signal integrity, EMC), and an approved
+  `pcb_plan_get` returns those skills: the skill no longer says pinned skills never change during
+  the plan, and tells the client to follow them when it verifies and reviews.
+  `scripts/check-skill.sh` checks this text (Deltatronix-pcb#3398, #4145).
 - **0.2.14 (2026-11-22):** skill only. The plan step no longer tells clients to send
   `expectedRevision` to `pcb_plan_propose`, whose schema refuses it, so a plugin client's first
   plan call no longer fails validation. A final review too large to list is paged with
