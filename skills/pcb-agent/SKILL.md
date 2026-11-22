@@ -99,8 +99,12 @@ or severity, or use a smaller `pageSize`. For `pcb_schematic_list_symbols` and
    skill's `prompt` for the work its `applicability` names, in addition to this
    skill; where they conflict on a tool's mechanics, this skill wins. A skill
    with `availability: "unavailable"` has no text yet: say so, do not invent
-   its rules. `pcb_plan_get` lists the same pinned versions under
-   `plan.skills`; they do not change during the plan.
+   its rules. `pcb_plan_get` lists every pinned version under `plan.skills`.
+   When the plan checks or exports (ERC, DRC, final review, manufacturing
+   export), the approval adds the expertise the design's brief calls for
+   (such as thermal, physics, signal integrity, EMC): an approved
+   `pcb_plan_get` returns those skills under `skills`, so follow their
+   prompts when you verify and review. Pins do not change after approval.
 3. Tell the user to approve it in the editor tab, then call `pcb_plan_get` with
    `waitSeconds: 30`. Repeat while the status is `pending`. A declined, stopped
    or expired plan stops the work.
