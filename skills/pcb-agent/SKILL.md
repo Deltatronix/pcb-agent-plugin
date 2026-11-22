@@ -86,8 +86,8 @@ or severity, or use a smaller `pageSize`. For `pcb_schematic_list_symbols` and
 2. Propose one plan with `pcb_plan_propose`: a `title`, `steps`
    (`{summary, tools[]}` the user reads), `maxCalls` (one per batch operation
    plus other planned writes, up to 500), `expiresInMinutes` (up to 120),
-   `expectedRevision`, and for export the `requirements` below. Use the revision
-   you planned against.
+   and for export the `requirements` below. A plan takes no `expectedRevision`;
+   each write carries its own.
    Keep the title to one line naming what you build or change. Steps are read
    in order; each summary is one line in the approval dialog. A new plan
    returns `planId` with status `pending`. Expiry starts after approval.
@@ -233,7 +233,10 @@ and a copyable example: end the plan, propose one with the requirements, and
 export again. A plan's requirements cannot be added after approval.
 
 A `REVIEW_NOT_READY` refusal lists what blocks it (unmet requirements, critical
-findings, what it could not verify). Fix those and export again.
+findings, what it could not verify). Fix those and export again. A review too
+large to list gives counts only: page it with `pcb_board_get_final_review`
+(`section` findings, requirements, unsupported, artifacts or pairs, with
+`pageSize` and `cursor`; `{}` gives the summary).
 
 ## 5. Import, merge or rename
 
