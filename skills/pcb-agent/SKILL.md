@@ -86,7 +86,7 @@ or severity, or use a smaller `pageSize`. For `pcb_schematic_list_symbols` and
 2. Propose one plan with `pcb_plan_propose`: a `title`, `steps`
    (`{summary, tools[]}` the user reads), `maxCalls` (one per batch operation
    plus other planned writes, up to 500), `expiresInMinutes` (up to 120),
-   and for export the `requirements` below. A plan takes no `expectedRevision`;
+   and for export the `requirements` below. The plan itself takes no revision:
    each write carries its own.
    Keep the title to one line naming what you build or change. Steps are read
    in order; each summary is one line in the approval dialog. A new plan
