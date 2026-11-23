@@ -99,7 +99,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.15 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.16 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -108,6 +108,15 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.16 (2026-11-23):** skill only. `pcb_plan_propose` no longer offers
+  `requirements.placement` or `inputArtifacts`: `requirements` takes only `brief` and
+  `finalReview`, and the server refuses any other key by name. The skill also covers the
+  latest tool behaviour: `pcb_schematic_add_label` `aliases` (rename, redefine or delete a bus
+  alias), a wire that would join two named nets refuses, a reference names every unit of a
+  part (`units[]`, Value on every unit), `pcb_board_get_net` and `pcb_board_get_region` return
+  item ids for `pcb_board_delete_items`, summary counts ignore page filters, and refusals name
+  the failing argument with an example in millimetres. `scripts/check-skill.sh` keeps the
+  refused keys out (Deltatronix-pcb#4610, #4145).
 - **0.2.15 (2026-11-23):** skill only. An approved plan that checks or exports pins extra
   expertise from the design's brief (thermal, physics, signal integrity, EMC), and an approved
   `pcb_plan_get` returns those skills: the skill no longer says pinned skills never change during

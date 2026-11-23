@@ -327,8 +327,10 @@ have changed the design, so read it before retrying.
   after the last edit; only it answers `saved`.
 - Batches add `operations[]` and optional `checks` counts; see Batches below.
 - `uncertain`: the outcome is unknown. Read again; do not resend under a new key.
-- `refused` comes with a reason and usually a message with a valid example. It
-  is a normal stop: read the reason, fix the call or the design, and do not
+- `refused` comes with a reason and usually a message with a valid
+  `Example: {...}` in millimetres. A bad argument is named by its path
+  (`rails[1].rail: ...`), and an insert refusal by its reference. It is a
+  normal stop: read the reason, fix the call or the design, and do not
   invent other tools. `STALE_REVISION` means read again first.
 - Report what you built from read-backs (ERC, DRC, nets, footprints), not from
   your own plan.
@@ -376,26 +378,36 @@ Whole-call refusals may have no `operation`. For `REQUEST_EXPIRED`
 - `pcb_schematic_list_symbols`: References are the displayed symbol references.
   Scope selectors by sheet, reference or connected net. See the observation
   advice above for fields and page size.
-- `pcb_schematic_get_symbol`: UUIDs are not references. Duplicate displayed
-  references require a sheet placement.
+- `pcb_schematic_get_symbol`: UUIDs are not references. A reference names the
+  whole part on one sheet placement: the result lists `units[]` (unit, id,
+  position, rotation) and the pins of every unit. `pin` filters by pin number
+  or name. A reference on several sheet placements needs `sheetInstanceId`.
 - `pcb_schematic_get_net`: Address an unnamed net with its solver identifier.
-  Pin endpoints are semantic and paged.
+  Pin endpoints are semantic and paged; `detailed` adds each pin's electrical
+  type.
 - `pcb_schematic_list_erc`: Download the full ERC report from the ERC panel.
 - `pcb_board_get_summary`: Counts include current DRC findings, with a bounded
-  violation page.
+  violation page. `severity` and `reference` narrow the page, never the counts
+  (the same holds for the schematic summary's ERC counts and
+  `pcb_board_run_drc`).
 - `pcb_board_list_footprints`: Listing references does not derive DRC or load
   geometry. See the observation advice above for fields and page size.
 - `pcb_board_get_footprint`: Returns separate geometry boxes and bounded pads,
   never footprint primitives.
-- `pcb_board_get_net`: Reports routed length and segments. Pad endpoints and
-  ratsnest endpoints are independently paged.
-- `pcb_board_get_region`: Intersection uses placed geometry bounds, rather
-  than footprint origins alone.
+- `pcb_board_get_net`: Reports routed length and pages the net's tracks and
+  vias under `tracks` (`id`, `kind`, layer or layers, width or diameter and
+  drill, ends or position) with `cursor`. Pad endpoints (`padCursor`) and
+  ratsnest endpoints (`ratsnestCursor`) are paged separately.
+- `pcb_board_get_region`: Lists the footprints and the board's own tracks,
+  vias, zones and graphics in the region, each with `id`, `kind` and layers.
+  Intersection uses placed geometry bounds, rather than footprint origins
+  alone.
 - `pcb_board_list_drc`: Uses the editor's DRC runner.
 - `pcb_board_get_stackup`: Read back the physical stackup before editing,
   including materials and dielectric properties.
 - `pcb_board_get_net_classes`: Dimensional class fields carry their source
-  `Mm` suffix.
+  `Mm` suffix. A board net's `effective.sizes` are the track width, clearance
+  and via drill and diameter after board minimums and approved fab floors.
 - `pcb_board_get_mechanical`: Heights are model-bounds hints or explicitly
   unavailable. Results contain no meshes or model IR.
 
@@ -403,17 +415,13 @@ Whole-call refusals may have no `operation`. For `REQUEST_EXPIRED`
 
 - `pcb_plan_propose`: See Observe, then one plan for fields and approval.
   Requirement-gated tools read `requirements` as approved facts and check them
-  against the design when used.
-  - `requirements.brief`: Placement and final-review requirement IDs must cite
-    brief items with category `user_decision`, provenance `user` and approval
-    `approved`. The user approves them with the plan. See the Export example
-    for a `stackup` item whose `value {referencePlane: {net, layer}}` names the
-    reference ground.
-  - `requirements.inputArtifacts`: Identify artifacts bound by placement facts,
-    such as the saved schematic.
-  - `requirements.placement`: Version 1 constraints cover layers, stackup,
-    fixed positions, allowed sides/rotations, relationships and mechanical
-    outline.
+  against the design when used. `requirements` takes only `brief` and
+  `finalReview`; any other key is refused by name.
+  - `requirements.brief`: Final-review check IDs must cite brief items with
+    category `user_decision`, provenance `user` and approval `approved`. The
+    user approves them with the plan. See the Export example for a `stackup`
+    item whose `value {referencePlane: {net, layer}}` names the reference
+    ground.
   - `requirements.finalReview`: Required for manufacturing export; list that
     tool in a step. Checks cite approved brief items and are evaluated against
     the board. `artifactKinds` selects archive contents: drill is always
@@ -496,7 +504,8 @@ least one target; labels and rails need at least one entry. Each target needs
   manufacturer claims are not accepted.
 - `pcb_schematic_connect`: Connects exactly two actual embedded pins on one
   unique sheet placement. Code resolves native geometry. Cross-sheet,
-  repeated-file, a path that meets a bus and unintended joins refuse.
+  repeated-file, a path that meets a bus and unintended joins refuse; a join
+  of two named nets refuses naming both.
 - `pcb_schematic_add_label`: List form:
 
   ```text
@@ -507,8 +516,23 @@ least one target; labels and rails need at least one entry. Each target needs
   point or a 2.54 mm stub wire when that point is taken. A bus net
   (`D[0..3]`) takes exactly one pin per member, in order, all facing one way:
   a stub per pin ends on one bus beside them (that end is the bus entry), with
-  member labels and the bus label of that kind. Matching-net pins use the skip
-  rule above. Missing pins, conflicting net names and unintended joins refuse.
+  member labels and the bus label of that kind. A label entry's `members`
+  defines its net as a bus alias of those members. Matching-net pins use the
+  skip rule above. Missing pins, conflicting net names and unintended joins
+  refuse.
+
+  `aliases` edits existing bus aliases and runs before `labels`, which may
+  then be omitted. Each entry is `{name}` plus exactly one of `to` (rename:
+  every label, sheet pin and alias that refers to it follows), `members`
+  (redefine) or `delete: true`. Names are plain, not vectors:
+
+  ```text
+  {"aliases": [{"name": "USB", "to": "USB2"}, {"name": "HOST", "delete": true}]}
+  ```
+
+  A rename to a name already used as an alias or net, or one that would move
+  any pin to another net, refuses; so do an alias that names itself and
+  deleting an alias something still refers to.
 - `pcb_schematic_add_sheet`: `{name, pins?, sheet?, file?}`. A hierarchical
   sub-sheet under `sheet` (default the root), its box placed by code, one
   sheet pin per name (bus names allowed), each labelled locally on the parent
@@ -537,23 +561,30 @@ least one target; labels and rails need at least one entry. Each target needs
 - `pcb_schematic_add_wire`: Explicit points contain 2..64 sheet coordinates
   on the connection grid from Every call and are never rounded. Named
   `from`/`to` pins produce an orthogonal path. Code adds junctions where the
-  wire tees into another wire and refuses unintended joins.
+  wire tees into another wire. A wire that would join two named nets refuses
+  and names them, as does a points wire onto a no-connect pin; a wire within
+  one net applies.
 - `pcb_schematic_move_symbol`: Addresses an unwired symbol by reference.
   Move all units or one unit by direction and a number of 2.54 mm steps; code
   computes the grid position. Broken or joined connections, body overlap and
   leaving the pin grid refuse.
 - `pcb_schematic_rotate_symbol`: Rotate all units or one unit of an unwired
   symbol by a quarter turn clockwise, counterclockwise, or a half turn about
-  its origin. Broken or joined connections and body overlaps refuse.
+  its origin. Broken or joined connections, body overlaps and off-grid pins
+  refuse.
 - `pcb_schematic_remove_symbol`: Removes every unit and pin labels/no-connect
-  flags serving no other wire or pin. Wires stay.
+  flags serving no other wire or pin. Wires stay. Move, rotate and remove
+  refuse a reference two parts share: annotate `duplicates` first.
 - `pcb_schematic_annotate`: `fill` numbers unannotated parts; `duplicates`
   renumbers the later part of each duplicate reference; `all` renumbers every
   part by position.
-- `pcb_schematic_tidy`: Autoplaces symbol fields and faces local labels along
-  their wire on one sheet placement. The net-to-pin map must remain identical.
+- `pcb_schematic_tidy`: Autoplaces symbol fields and orients every label
+  along its wire on one `sheet`; `layout: true` also arranges the parts in
+  blocks. The net-to-pin map must remain identical.
 - `pcb_schematic_set_symbol_field`: See Schematic step 1 for Value, Footprint
-  and Datasheet; user fields are supported too. Reference uses annotation.
+  and Datasheet; user fields are supported too. It sets every unit of the part
+  in one undo entry. `field: "Reference"` refuses: use
+  `pcb_schematic_annotate`.
   Footprints must resolve to library land patterns or patterns embedded in
   the design. Ambiguous references require a sheet path or sheet ID.
 - `pcb_schematic_set_net_class`: Creates or updates a project class by name
@@ -571,16 +602,15 @@ least one target; labels and rails need at least one entry. Each target needs
   Board step 2. Adds new footprints and updates changed ones while keeping
   existing footprints, routes and user models. `removeMissing` removes
   unlocked footprints whose symbols disappeared; board-only footprints stay.
-  Courtyard/edge findings appear as receipt warnings. With approved placement
-  facts, every added reference requires an explicit in-scope position, the
-  mechanical layout is applied, and new violations refuse.
+  Courtyard/edge findings appear as receipt warnings.
 - `pcb_board_place_footprint`: Positions are absolute; rotation is degrees.
   Courtyard overlaps and courtyards crossing the edge are applied and reported
   as receipt warnings.
 - `pcb_board_move_footprint`: Movement is relative to the footprint's current
   position.
-- `pcb_board_delete_items`: Accepts footprint references and returned IDs for
-  tracks, vias, zones or board graphics. At most 200 items per call; no
+- `pcb_board_delete_items`: Accepts footprint `references` and `ids` of
+  tracks, vias, zones or board graphics as `pcb_board_get_net` and
+  `pcb_board_get_region` return them. At most 200 items per call; no
   delete-all. Locked and unknown items refuse.
 - `pcb_board_configure_stackup`: Dielectric ply 0 is the row; higher indices
   identify existing sublayers. Changing copper count preserves thickness.
