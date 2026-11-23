@@ -42,13 +42,22 @@ transaction with a receipt. Work on the platform, never in local KiCad files.
    arguments named here, no `catalogVersion` or revision.
 7. Toolboxes, for clients that limit how many tools they show. The `pcb_board_*`,
    `pcb_schematic_*` and parts tools (`pcb_part_*`, `pcb_components_*`,
-   `pcb_footprints_*`) sit in the `board`, `schematic` and `parts` toolboxes;
-   plan, design (`pcb_design_*`, `pcb_designs_list`), task and batch tools are
-   always listed. All toolboxes start open. If a
-   `pcb_*` tool you need is missing from your tools, call `list_toolboxes`, then
-   `close_toolbox` the ones this task does not need and `open_toolbox` the one it
-   does. The choice is kept for your client; a client that does not refresh its
-   list on `notifications/tools/list_changed` shows it in its next session.
+   `pcb_footprints_*`) sit in the `board`, `schematic` and `parts` toolboxes.
+   The `advanced` toolbox holds `pcb_board_route_pair`, `pcb_board_tune_pair`
+   and `pcb_design_import_kicad` (KiCad import and design merge). Plan, the
+   other design tools (`pcb_design_*`, `pcb_designs_list`), task and batch
+   tools are always listed. `board`, `schematic` and `parts` start open;
+   `advanced` starts CLOSED. If a `pcb_*` tool you need is missing from your
+   tools, call `list_toolboxes`, then `open_toolbox` with the toolbox that
+   holds it (`{"toolbox": "advanced"}`), and `close_toolbox` the ones this task
+   does not need. Closing only hides tools from the list; it never blocks a
+   call. The choice is kept for your client. A client that does not refresh
+   its list on `notifications/tools/list_changed` shows the change in its next
+   session: in Codex a newly opened toolbox appears only in the next session.
+   Meanwhile the pair writes stay reachable in this session as
+   `pcb_batch_write` operations (`{"tool": "pcb_board_route_pair", "args":
+   {...}}`); an import cannot be a batch operation, so it waits for the next
+   session.
 
 ## 2. Every call
 
@@ -134,9 +143,10 @@ reference for each operation's `args`.
 
 **Parts.** `pcb_components_search` / `pcb_components_inspect` find library
 parts (insert them by `decisionId`). A part the library lacks is defined once
-with `pcb_part_define`: symbol body and pins in mm on the 2.54 mm grid (+y
-down, x/y is the pin's connection point), footprint pads in millimetres with drill for
-through-hole, a courtyard, and `pinToPad`. Its id is
+with `pcb_part_define`: symbol body and pins in mm (+y down, x/y is the pin's
+connection point, on the 1.27 mm grid, and the pin's stem ends on the body's
+edge), footprint pads in millimetres with drill for through-hole, a
+courtyard, and `pinToPad`. Its id is
 `inline:<name in lowercase, non-alphanumerics as ->`. Without `fab`, the
 footprint gets an F.Fab outline (the courtyard less 0.25 mm) with a pin-1
 bevel. On a two-pad part whose symbol has a pin named `K`, `Cathode`, `+` or
@@ -144,6 +154,31 @@ bevel. On a two-pad part whose symbol has a pin named `K`, `Cathode`, `+` or
 and a polarized capacitor's positive pin `+`. No silk is drawn for you: add a
 `silk.outline` that stays clear of every pad (silk on a pad is a DRC
 warning).
+
+A definition the checks refuse names each problem with its fix; apply it and
+send the definition again:
+
+- a pin off the 1.27 mm grid gives the position to use;
+- a pin whose stem misses the body gives the `x` or `y` that lands it on the
+  body's edge;
+- an SMD pad on `F.Cu` without `F.Mask` (or `B.Cu` without `B.Mask`) gets no
+  solder-mask opening: give it `["F.Cu", "F.Paste", "F.Mask"]`;
+- pads within 0.25 mm of the courtyard give one finding with a courtyard
+  rectangle that passes.
+
+A part already defined refuses `INLINE_PART_EXISTS`. To repair one, read it
+with `pcb_part_get` and send the whole definition again with `replace: true`:
+the part is redefined, its footprint variants kept, and every placed symbol of
+it redrawn in the same transaction (one undo). The board keeps the old
+footprint until you reload it (`pcb_board_sync_components` with
+`reloadFootprints`, Board below). `{"name": "...", "remove": true}` (nothing
+else) deletes an unplaced part; a placed one refuses `INLINE_PART_IN_USE`
+naming its references: remove those symbols with `pcb_schematic_remove_symbol`
+first, or repair the part with `replace: true`. A single `pcb_part_define`
+call (not a batch operation) returns `preview`: the symbol as `{svg}`, or as
+`{text}` (body size and pins per side) when the SVG is over 6000 characters.
+Check it before you insert the part. Without a plan, the approval dialog draws
+the symbol and footprint for the user.
 
 **Schematic.**
 
@@ -196,7 +231,10 @@ warning).
 2. `pcb_board_sync_components` (Update PCB) with no `positions`: new
    footprints land beside the outline, as in the editor, and the receipt warns
    that they are off the board. Then `pcb_board_place_footprint` (mm) for each
-   reference. `pcb_board_list_footprints` reads them back. Place each IC's
+   reference, or `pcb_board_autoplace` with `{"references": ["R1", "C3"]}` to
+   let the editor's autoplace put them inside the outline near the copper
+   they connect to (place connectors and other fixed parts yourself first).
+   `pcb_board_list_footprints` reads them back. Place each IC's
    decoupling capacitor close to the supply pin it serves: the final review
    warns above 3.5 mm, or above a reviewed `layout` distance fact. Put USB and
    power connectors at the board edge.
@@ -206,10 +244,15 @@ warning).
 4. `pcb_board_configure_design_rules` for board minimums (`minClearanceMm` and
    the other `*Mm` fields).
 5. Route each connection with `pcb_board_route_net` (`fromRef/fromPad`,
-   `toRef/toPad`, `layer`, `widthMm`). Use the other layer where routes cross. A
-   search that stops short returns `partial` and adds nothing: change the layer
-   or placement, or draw an exact path with `pcb_board_add_track`. A partial
-   route refuses its batch.
+   `toRef/toPad`, optional `layer` and `widthMm`). Without `layer` or `via`,
+   it tries every copper layer both pads share, then places up to two through
+   vias itself onto another signal layer; the result lists them under
+   `routing.vias`. With `layer` it stays on that layer. A search that stops
+   short returns `partial`, names the layers tried and whether the search
+   area or the time budget ran out, and adds nothing: move parts, or draw an
+   exact path with `pcb_board_add_track`. A partial route refuses its batch. A
+   net of a differential pair is refused: route it with
+   `pcb_board_route_pair` (Tool notes).
 6. `pcb_board_pour_copper_zone` (for example `GND` on `B.Cu`).
 7. Use the batch's DRC counts (with schematic parity when the schematic has
    parts); page `pcb_board_list_drc` and fix findings until clean.
@@ -308,7 +351,8 @@ leave and why.
 
 ## 5. Import, merge or rename
 
-`pcb_design_import_kicad` imports from one of two sources:
+`pcb_design_import_kicad` is in the `advanced` toolbox, which starts closed:
+open it first (Connect, item 7). It imports from one of two sources:
 
 - **KiCad files:** `mode` and `files: [{path, text}]`, up to 64 files at
   project-relative paths. `mode: "replace"` replaces the design's schematic and
@@ -479,6 +523,8 @@ needed and left. A batch refused in the editor has spent its calls.
 
 `pcb_design_save`, `pcb_board_export_manufacturing`, `pcb_design_import_kicad`,
 plan tools and the batch itself cannot be operations (`BATCH_TOOL_NOT_ALLOWED`).
+An operation may name a tool of a closed toolbox, such as
+`pcb_board_route_pair` or `pcb_board_tune_pair` while `advanced` is closed.
 Mixing schematic and board tools gives `BATCH_MIXED_DOMAINS`. Copper-zone
 tools (pour, refill) go in a batch of their own: mixing them with other tools
 is refused before anything runs (`BATCH_MIXED_ZONE_TOOLS`).
@@ -600,10 +646,14 @@ Whole-call refusals may have no `operation`. For `REQUEST_EXPIRED`
   `through_hole` technology. Omit `fab` for the default bevelled F.Fab outline;
   always add a silk outline clear of the pads (Parts above). Both symbol and
   footprint checkers validate the part. It is stored only in the design, never
-  a library. Names producing an occupied ID
-  are refused. Pass its ID as `inlinePartId` on insert, with optional `value`.
+  a library. See Parts above for refusals and their fixes, `replace: true`,
+  `remove: true` and the `preview`. `variantOf` (an existing inline part's ID,
+  with `name` and `footprint` but no `symbol` or `pinToPad`) adds another
+  footprint for the same pins, usable in the Footprint field. Pass its ID as
+  `inlinePartId` on insert, with optional `value`.
 - `pcb_part_get`: Omit `inlinePartId` to list every inline part's ID, name,
-  pin count and pad count.
+  pin count, pad count and footprint names; with it, read the whole stored
+  definition in mm (the starting point for a `replace: true`).
 
 ### Draw the schematic
 
@@ -729,10 +779,26 @@ least one target; labels and rails need at least one entry. Each target needs
   Board step 2. Adds new footprints and updates changed ones while keeping
   existing footprints, routes and user models. `removeMissing` removes
   unlocked footprints whose symbols disappeared; board-only footprints stay.
-  Courtyard/edge findings appear as receipt warnings.
+  Courtyard/edge findings appear as receipt warnings. `reloadFootprints`
+  (1 to 64 board references, sent on its own with no other argument) is the
+  Tools menu's Reload Footprints from Library for those parts, one undo: an
+  inline part's footprint is read from the design, so this brings a repaired
+  part (`replace: true`) onto the board. The receipt lists the parts reloaded,
+  already matching and not found in the library, and names other references
+  that use the same footprint (reload them too if they need it). Run
+  `pcb_board_run_drc` afterwards: reloaded pads can meet tracks differently.
 - `pcb_board_place_footprint`: Positions are absolute; rotation is degrees.
   Courtyard overlaps and courtyards crossing the edge are applied and reported
   as receipt warnings.
+- `pcb_board_autoplace`: `{"references": [...]}` (1 to 200). The editor's
+  autoplace: each part moves to the free spot inside the board outline
+  nearest the copper it connects to, keeping its rotation and side; a part
+  with no room stays where it is and the receipt names it. One undo for the
+  whole call. It needs a closed outline on Edge.Cuts; an unknown, shared or
+  locked reference is refused before anything moves. Approved placement facts
+  are honoured, and a result that breaks them is refused with the board
+  unchanged; an MCP plan carries no placement facts, so over MCP placement
+  findings come back as receipt warnings, as for `pcb_board_place_footprint`.
 - `pcb_board_move_footprint`: Movement is relative to the footprint's current
   position.
 - `pcb_board_delete_items`: Accepts footprint `references` and `ids` of
@@ -748,14 +814,50 @@ least one target; labels and rails need at least one entry. Each target needs
   while preserving other settings. It does not edit project net classes or
   establish supplier compliance. Zero disables a minimum; null restores its
   existing default. `minResolvedSpokes` is an integer count.
-- `pcb_board_route_net`: Uses `search.ts`. An explicit track-end or existing
-  through-via anchor supports a bounded layer transition; through vias span
-  the full stack. Both legs must reach within one 200 ms search budget and
-  pass native DRC. Crossed pours refill in the same transaction. A partial
-  search returns the last clear point; see Board step 5 for recovery and the
-  no-copper result. Geometry compliance does not establish engineering
-  readiness: current-budget provenance and reference continuity require
-  evidence.
+- `pcb_board_route_net`: The editor's router, one 200 ms search budget per
+  try, and the result must pass native DRC. Without `layer` or `via` it tries
+  each copper layer both pads share, then through vias onto each other signal
+  layer, at most two per route (Board step 5); their size is the net class's
+  via raised to the board and fab minimums, and they never touch a pad or
+  land on a power-plane layer. `via` (`toLayer`, `type: "through"`, optional
+  `anchor` at a track end or an existing through via, `diameterMm`,
+  `drillMm`) asks for one explicit layer change. Blind and micro vias, `mode:
+  "push"` and nets of a differential pair are refused. A track on an inner
+  power-plane layer, or one that would cut another net's plane fill, is
+  refused with the layer named and the signal layers to use. Crossed pours
+  refill in the same transaction. A partial search returns the last clear
+  point and adds no copper; pads with no common layer that no router via
+  could join refuse with the tries listed. Geometry compliance does not
+  establish engineering readiness: current-budget provenance and reference
+  continuity require evidence.
+- `pcb_board_route_pair` (`advanced` toolbox, or a batch operation): routes a
+  differential pair's two nets between named pads as one coupled route, its
+  width and gap from the net class, the tuning profile or
+  `targetImpedanceOhms` (on the stored stackup). Every length is in mm:
+
+  ```json
+  {"positiveNet": "USB_D+", "negativeNet": "USB_D-",
+   "from": {"positive": {"reference": "J1", "pad": "2"}, "negative": {"reference": "J1", "pad": "3"}},
+   "to": {"positive": {"reference": "U1", "pad": "1"}, "negative": {"reference": "U1", "pad": "2"}},
+   "allowedLayers": ["F.Cu"], "layer": "F.Cu", "maxVias": 0,
+   "maxLengthMm": 50, "maxSkewMm": 0.15, "targetImpedanceOhms": 90}
+  ```
+
+  `maxVias` is even (0 to 32). At most one paired layer change (`endLayer`),
+  through vias only, with its return via (`returnViaId`) already within 1 mm;
+  there is no pair autorouter. Take `maxLengthMm`, `maxSkewMm`,
+  `minForeignSeparationMm` and the impedance target from the approved brief:
+  a limit you pass only tightens the route, it is not an approved
+  requirement, and an absent one, like signal integrity, stays unverified.
+  A refusal keeps the prior copper, and its message carries `residuals`:
+  each missed constraint with its actual, required and residual value in mm.
+- `pcb_board_tune_pair` (`advanced` toolbox, or a batch operation): the same
+  pair fields (no `layer`), plus `trackId` (a track of the routed pair, from
+  `pcb_board_get_net`), `mode` `"length"` or `"skew"` (positive minus
+  negative) and `targetMm`, with optional `maxAmplitudeMm`. It adds meanders
+  within the design rules and tuning settings; the amplitude cap only
+  tightens them. A refusal keeps the prior copper and carries `residuals` the
+  same way.
 - `pcb_board_add_track`: Adds an exact path on a copper layer, optionally
   with full-stack through vias at specified points. It performs no search and
   has no DRC gate. Shorts refuse before commit and name the other net. Crossed
@@ -779,7 +881,7 @@ least one target; labels and rails need at least one entry. Each target needs
 - `pcb_board_export_manufacturing`: See Export for the save it makes first,
   the presets, required plan facts, refusals and returned archive metadata; see Approve the work for final-review
   selectors and artifact selection, and Board step 3 for the explicit stackup.
-- `pcb_design_import_kicad`: See Import, merge or rename for its two sources
+- `pcb_design_import_kicad` (`advanced` toolbox): See Import, merge or rename for its two sources
   (KiCad files, or another design to merge), the accepted files, sending in
   parts, the `import` report, failures and separate editor approval.
 - `pcb_design_rename`: See Import, merge or rename.

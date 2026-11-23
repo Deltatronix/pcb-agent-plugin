@@ -74,16 +74,18 @@ Catalog version 2: every call passes `designId` and `catalogVersion: 2`.
 - **Schematic:** define a missing part inline (`pcb_part_define`), insert, set fields, add power,
   labels, wires, direct pin connections and no-connect flags, move, rotate, remove, annotate,
   tidy, net classes. A pin is named by its pin name, or by number when the part repeats a name.
-- **Board:** set the outline, sync from the schematic (Update PCB), place and move footprints,
-  delete items, configure the stackup and design rules, route a net, add an exact track, pour
-  and refill copper zones.
+- **Board:** set the outline, sync from the schematic (Update PCB) or reload footprints from
+  the library, place, autoplace and move footprints, delete items, configure the stackup and
+  design rules, route a net (with up to two router-placed vias), route and tune a differential
+  pair, add an exact track, pour and refill copper zones.
 - **Save and export:** `pcb_design_save` returns `saved` only when the schematic and board are
   durably stored. `pcb_board_export_manufacturing` runs the final review and stores a ZIP of
   Gerbers, drill, position and BOM files as a design asset, returning a reference and a
   short-lived URL, never file bytes.
 - **Import:** `pcb_design_import_kicad` replaces the design with a KiCad project's text files,
   appends a KiCad project's sheets, or merges another granted design's sheets (`fromDesignId`).
-  It always asks you in the editor, even inside a plan.
+  It always asks you in the editor, even inside a plan. Import and the pair tools sit in the
+  `advanced` toolbox, which starts closed (`open_toolbox`).
 - **Designs:** `pcb_designs_list` lists the designs your client is granted; `pcb_design_create`
   makes an empty design granted to that client only; `pcb_design_open` moves the connected tab to
   another granted design after you approve; `pcb_design_rename` renames the design.
@@ -99,7 +101,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.18 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.19 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -108,6 +110,19 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.19 (2026-11-23):** skill only. Toolboxes: the new `advanced` toolbox starts closed and
+  holds `pcb_board_route_pair`, `pcb_board_tune_pair` and `pcb_design_import_kicad`; open it
+  with `open_toolbox` (in Codex it appears in the next session, and the pair writes work now as
+  `pcb_batch_write` operations). Board: `pcb_board_autoplace` places parts by reference inside
+  the outline, keeping rotation and side, in one undo; `pcb_board_route_net` tries every shared
+  layer, then places up to two through vias itself (`routing.vias`), keeps inner power planes
+  whole, and sends a paired net to `pcb_board_route_pair`; the pair tools take millimetres and
+  their limits from the approved brief; `pcb_board_sync_components` takes `reloadFootprints`
+  (on its own, names where else each footprint is used; run DRC after). Parts:
+  `pcb_part_define` returns a `preview` (SVG, or text past 6000 characters), takes
+  `replace: true` and `remove: true` (`INLINE_PART_IN_USE` while placed), and refuses off-grid
+  pins, stems off the body, SMD pads without mask and tight courtyards with the fix
+  (Deltatronix-pcb#4633, #4634, #4639, #4641, #4642; Deltatronix-backend#1068).
 - **0.2.18 (2026-11-23):** skill only. Import: the skill lists the modern KiCad files the tool
   takes (no legacy KiCad 5 or library files, one `.kicad_pro`), how to send a project over
   4 MiB in parts (`importId`, `part`, `final`), the `import` report and its warnings (weak
