@@ -99,7 +99,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.17 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.18 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -108,6 +108,19 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.18 (2026-11-23):** skill only. Import: the skill lists the modern KiCad files the tool
+  takes (no legacy KiCad 5 or library files, one `.kicad_pro`), how to send a project over
+  4 MiB in parts (`importId`, `part`, `final`), the `import` report and its warnings (weak
+  library links, unknown pin types and the rest of File > Open's log), and what
+  `IMPORT_FAILED` and `IMPORT_PARTLY_APPLIED` now say; a replace without a `.kicad_pcb` keeps
+  the board. Export saves first (`SAVE_FAILED`), names the variant in its receipt, gives a next
+  step for `SUPERSEDED_REVIEW`, `CANCELLED`, `GENERATION_UNAVAILABLE` and `STALE_ZONE_FILLS`,
+  and takes the 2-layer or the new 4-layer preset
+  (`jlcpcb-4l-fr4-1oz-green-routed-no-vcut-v1`, F.Cu/In1.Cu/In2.Cu/B.Cu, 1 oz). Results list
+  the split write refusals `READ_ONLY`, `ROOM_CLOSED`, `DECLINE_COOLDOWN`,
+  `INVALID_IDEMPOTENCY_KEY` and `STALE_REVISION` (with the current revision) and what to do
+  for each, and say that a collaborator's edits in a shared room no longer stop a step
+  (Deltatronix-pcb#4619, #4620, #4621, #4623, #4624, #4626).
 - **0.2.17 (2026-11-23):** skill only. The skill teaches the engineering bar the final review
   now checks: `pcb_part_define` draws an F.Fab outline with a pin-1 bevel by default, at `K`
   for a diode or LED and at `+` for a polarized capacitor, and the agent adds a silk outline
