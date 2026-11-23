@@ -137,15 +137,24 @@ parts (insert them by `decisionId`). A part the library lacks is defined once
 with `pcb_part_define`: symbol body and pins in mm on the 2.54 mm grid (+y
 down, x/y is the pin's connection point), footprint pads in millimetres with drill for
 through-hole, a courtyard, and `pinToPad`. Its id is
-`inline:<name in lowercase, non-alphanumerics as ->`.
+`inline:<name in lowercase, non-alphanumerics as ->`. Without `fab`, the
+footprint gets an F.Fab outline (the courtyard less 0.25 mm) with a pin-1
+bevel. On a two-pad part whose symbol has a pin named `K`, `Cathode`, `+` or
+`-`, the bevel goes on that pin's pad, so name a diode's or LED's cathode `K`
+and a polarized capacitor's positive pin `+`. No silk is drawn for you: add a
+`silk.outline` that stays clear of every pad (silk on a pad is a DRC
+warning).
 
 **Schematic.**
 
 1. `pcb_schematic_insert_components`: references, `sheetInstanceId` from the
    summary, `inlinePartId` or `decisionId`, positions, and each part's `value`
    (`"10k"`, `"220R"`), set on insert. Leave room: a wire between two pins must
-   not cross a third pin. `pcb_schematic_set_symbol_field` changes a Value
-   later (and Footprint, Datasheet).
+   not cross a third pin. Give each IC supply pin its own decoupling capacitor
+   to ground, and each I2C line (SDA, SCL) a pull-up resistor to its rail
+   unless a module on the bus carries its own.
+   `pcb_schematic_set_symbol_field` changes a Value later (and Footprint,
+   Datasheet).
 2. The pin tools take lists. A target is one part and some of its pins:
    `{"reference": "A1", "pins": ["D2", "D3"]}`. Up to 64 targets per list, 32
    rails or labels per call and 256 pins per call. A call is all or nothing: the
@@ -187,7 +196,10 @@ through-hole, a courtyard, and `pinToPad`. Its id is
 2. `pcb_board_sync_components` (Update PCB) with no `positions`: new
    footprints land beside the outline, as in the editor, and the receipt warns
    that they are off the board. Then `pcb_board_place_footprint` (mm) for each
-   reference. `pcb_board_list_footprints` reads them back.
+   reference. `pcb_board_list_footprints` reads them back. Place each IC's
+   decoupling capacitor close to the supply pin it serves: the final review
+   warns above 3.5 mm, or above a reviewed `layout` distance fact. Put USB and
+   power connectors at the board edge.
 3. `pcb_board_configure_stackup`, for example 2 copper layers and one FR4
    dielectric: export needs an explicit stackup.
 4. `pcb_board_configure_design_rules` for board minimums (`minClearanceMm` and
@@ -226,11 +238,17 @@ short-lived URL), never file bytes. Select the archive contents with
     "artifactKinds": ["gerber", "drill", "bom", "placement"],
     "checks": [
       { "requirementId": "erc", "selector": { "kind": "erc" }, "applicability": "required" },
-      { "requirementId": "drc", "selector": { "kind": "drc" }, "applicability": "required" }
+      { "requirementId": "drc", "selector": { "kind": "drc" }, "applicability": "required" },
+      { "requirementId": "pin-1", "selector": { "kind": "pin-1" }, "applicability": "when-applicable" },
+      { "requirementId": "polarity", "selector": { "kind": "polarity" }, "applicability": "when-applicable" }
     ]
   }
 }
 ```
+
+ERC and DRC are required. The `pin-1` (every footprint marks pin 1 on F.Fab)
+and `polarity` (a diode, LED or polarized capacitor marks its cathode or +)
+checks are optional; add them for any board with ICs or polarized parts.
 
 Without these, export is refused with `FINAL_REVIEW_REQUIREMENTS_UNAVAILABLE`
 and a copyable example: end the plan, propose one with the requirements, and
@@ -241,6 +259,14 @@ findings, what it could not verify). Fix those and export again. A review too
 large to list gives counts only: page it with `pcb_board_get_final_review`
 (`section` findings, requirements, unsupported, artifacts or pairs, with
 `pageSize` and `cursor`; `{}` gives the summary).
+
+A successful export can still end with `Not verified; do not report a passed
+review:` and a list. It carries what the review could not check and the
+design-intent warnings: a decoupling capacitor too far from its supply pin, an
+IC supply pin with no capacitor of its own, an I2C line with no pull-up. Fix
+each one (move or add the part), check again and export again. Report a
+passed review only when the list is gone; tell the user about any item you
+leave and why.
 
 ## 5. Import, merge or rename
 
@@ -471,9 +497,11 @@ Whole-call refusals may have no `operation`. For `REQUEST_EXPIRED`
 
 - `pcb_part_define`: See Parts above for symbol geometry, grid, `pinToPad` and
   ID format. Footprints have pads with size and optional drill, a courtyard
-  rectangle, optional silk outline and text, and `smd` or `through_hole`
-  technology. Both symbol and footprint checkers validate the part. It is
-  stored only in the design, never a library. Names producing an occupied ID
+  rectangle, optional `fab` and `silk` outlines and silk text, and `smd` or
+  `through_hole` technology. Omit `fab` for the default bevelled F.Fab outline;
+  always add a silk outline clear of the pads (Parts above). Both symbol and
+  footprint checkers validate the part. It is stored only in the design, never
+  a library. Names producing an occupied ID
   are refused. Pass its ID as `inlinePartId` on insert, with optional `value`.
 - `pcb_part_get`: Omit `inlinePartId` to list every inline part's ID, name,
   pin count and pad count.
