@@ -3,6 +3,8 @@
 # refuses it (additionalProperties: false), so a client that sends it fails its first call.
 # It must also say that approval adds expertise skills (Deltatronix-pcb#4587): an approved
 # pcb_plan_get returns them, so "skills do not change during the plan" is wrong.
+# Since Deltatronix-pcb#4610 pcb_plan_propose refuses `requirements` keys other than
+# brief and finalReview, so the skill must not offer placement facts or inputArtifacts.
 # Usage: scripts/check-skill.sh [SKILL.md]
 skill=${1:-"$(dirname "$0")/../skills/pcb-agent/SKILL.md"}
 step=$(awk '/^2\. Propose one plan with `pcb_plan_propose`/{on=1} on&&/^3\. /{exit} on' "$skill")
@@ -17,6 +19,10 @@ if ! printf '%s\n' "$step" | grep -q 'the approval adds the expertise'; then
 fi
 if printf '%s\n' "$step" | grep -n 'do not change during the plan'; then
   echo "check-skill: the plan step says pinned skills do not change during the plan" >&2
+  exit 1
+fi
+if grep -n 'requirements\.placement\|inputArtifacts' "$skill"; then
+  echo "check-skill: the skill offers requirements the plan schema refuses" >&2
   exit 1
 fi
 echo "check-skill: ok"
