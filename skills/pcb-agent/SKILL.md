@@ -201,7 +201,8 @@ warning).
    warns above 3.5 mm, or above a reviewed `layout` distance fact. Put USB and
    power connectors at the board edge.
 3. `pcb_board_configure_stackup`, for example 2 copper layers and one FR4
-   dielectric: export needs an explicit stackup.
+   dielectric: export needs an explicit stackup that matches a manufacturing
+   preset (Export below).
 4. `pcb_board_configure_design_rules` for board minimums (`minClearanceMm` and
    the other `*Mm` fields).
 5. Route each connection with `pcb_board_route_net` (`fromRef/fromPad`,
@@ -220,11 +221,14 @@ never reports saved early. Call it in any plan or without one, without asking
 for approval. It needs no plan entry and saves the current content regardless
 of which held `expectedRevision` you supply. See Every call for tab revisions.
 
-**Export.** `pcb_board_export_manufacturing` runs the final review, then stores a
-ZIP (Gerbers incl. mask and silk, drill, position, BOM) as a design asset and
-returns `artifact` (`assetId`, filename, SHA-256 `contentHash`, size, file list,
-short-lived URL), never file bytes. Select the archive contents with
-`artifactKinds`. The approved plan must list it and carry:
+**Export.** `pcb_board_export_manufacturing` saves the design first, as
+`pcb_design_save` does, then runs the final review, then stores a ZIP (Gerbers
+incl. mask and silk, drill, position, BOM) as a design asset and returns
+`artifact` (`assetId`, filename, SHA-256 `contentHash`, size, file list,
+short-lived URL), never file bytes. The receipt names the variant: it reads
+`Exported <zip> (N files, default variant).`, and export always uses the
+default variant. Select the archive contents with `artifactKinds`. The approved
+plan must list it and carry:
 
 ```json
 "requirements": {
@@ -246,9 +250,29 @@ short-lived URL), never file bytes. Select the archive contents with
 }
 ```
 
+`manufacturingPreset` is one of two presets. Each needs an explicit stackup
+with exactly its copper layers, every copper 35 µm (1 oz), FR4 dielectrics
+between them, and mask rows on both sides; edge connectors, castellations and
+edge plating are outside both:
+
+- `jlcpcb-2l-fr4-1oz-green-routed-no-vcut-v1`: F.Cu and B.Cu with one FR4
+  dielectric (`pcb_board_configure_stackup` with `copperLayerCount: 2`).
+- `jlcpcb-4l-fr4-1oz-green-routed-no-vcut-v1`: F.Cu, In1.Cu, In2.Cu and B.Cu
+  with three FR4 dielectrics (`copperLayerCount: 4`). A 0.5 oz (17.5 µm) inner
+  layer fails the review.
+
+There is no other layer count, no 2 oz preset and no castellated preset: a
+board that matches neither preset cannot export. Pick the preset that matches
+the board's copper, and put its stack in the `stackup` brief item's text.
+
 ERC and DRC are required. The `pin-1` (every footprint marks pin 1 on F.Fab)
 and `polarity` (a diode, LED or polarized capacitor marks its cathode or +)
 checks are optional; add them for any board with ICs or polarized parts.
+
+A save it cannot confirm refuses `SAVE_FAILED` ("Nothing was exported: the
+design must save first." with the save's reason): nothing was reviewed or
+uploaded. Fix what the reason names (see Results for `ROOM_CLOSED`), call
+`pcb_design_save` until it answers `saved`, then export again.
 
 Without these, export is refused with `FINAL_REVIEW_REQUIREMENTS_UNAVAILABLE`
 and a copyable example: end the plan, propose one with the requirements, and
@@ -259,6 +283,20 @@ findings, what it could not verify). Fix those and export again. A review too
 large to list gives counts only: page it with `pcb_board_get_final_review`
 (`section` findings, requirements, unsupported, artifacts or pairs, with
 `pageSize` and `cursor`; `{}` gives the summary).
+
+Other export refusals say what to do next in their message:
+
+- `SUPERSEDED_REVIEW`: a newer review (for example one the user started in the
+  editor's review panel) replaced this one. Call the export again.
+- `CANCELLED`: the review or generation was cancelled. Export again only if
+  the user still wants the files.
+- `GENERATION_UNAVAILABLE`: generation stopped before it finished. Export
+  again once; if it fails again, ask the user to export from the editor's
+  Fabrication Outputs menu.
+- `STALE_ZONE_FILLS`: copper fills are out of date. Refill with
+  `pcb_board_refill_copper_zone` (in a plan), then export again.
+
+None of these issued an archive.
 
 A successful export can still end with `Not verified; do not report a passed
 review:` and a list. It carries what the review could not check and the
@@ -272,19 +310,57 @@ leave and why.
 
 `pcb_design_import_kicad` imports from one of two sources:
 
-- **KiCad files:** `mode` and `files: [{path, text}]`. `mode: "replace"`
-  replaces the design's schematic and board with a KiCad project
-  (`.kicad_pro`, `.kicad_sch` including sub-sheets, `.kicad_pcb`, `.kicad_dru`,
-  `fp-lib-table`, and `sym-lib-table`; 4 MiB per call); `mode: "append"` adds
-  the project's sheets, and its board's items, beside this design's. Use
-  project-relative paths. This matches File > Open KiCad Project Folder and
-  returns an import summary and new schematic/board revisions.
+- **KiCad files:** `mode` and `files: [{path, text}]`, up to 64 files at
+  project-relative paths. `mode: "replace"` replaces the design's schematic and
+  board with a KiCad project; `mode: "append"` adds the project's sheets, and
+  its board's items, beside this design's. It runs the same conversion as the
+  editor's File menu import of a KiCad project folder, but takes modern KiCad
+  text files only: `.kicad_pro`, `.kicad_sch` (including sub-sheets),
+  `.kicad_pcb`, `.kicad_dru`, `fp-lib-table` and `sym-lib-table`. Legacy
+  KiCad 5 files (`.pro`, `.sch`) and library files (`.kicad_sym`,
+  `.kicad_mod`) are refused. Send one project with one `.kicad_pro` and its
+  own files; without a `.kicad_pro` it refuses `KICAD_PROJECT_MISSING`. A
+  replace without a `.kicad_pcb` replaces the schematic only and keeps the
+  design's board; the dialog and the warnings say so.
 - **Another design (merge):** `{"mode": "append", "fromDesignId": "..."}`
   appends that design's sheets and board items to this design. A design is only
   ever appended (`mode: "replace"` with `fromDesignId` is refused), and it
   takes no `files`. The source design must be granted to your client too
   (`pcb_designs_list`); otherwise it refuses `DESIGN_NOT_GRANTED` with the
   link where the user grants it. It cannot merge a design into itself.
+
+**A project over 4 MiB goes in parts.** One call carries at most 4 MiB of
+file text (more: `PROJECT_TOO_LARGE`). Send up to 8 calls of 4 MiB each (32
+MiB in all) with the same `importId` (1 to 64 letters, digits, `_` or `-`),
+`part` 1, 2, 3 … in order, and `final: false`, then the last part with
+`final: true`. All three go together, with `mode` and `files`. A path sent
+again in a later part continues that file's text, so a large file can be
+split across parts. Each part is a write with the current schematic
+`expectedRevision` and its own new `idempotencyKey`. A part before the final
+one answers `staged` with what is held so far and asks nothing. The final part
+asks the user and imports the whole project. A part out of order refuses
+`IMPORT_PART_OUT_OF_ORDER` with the part to send next, or says to start again
+at part 1. The staged parts are kept for 10 minutes after the last one, and a
+new `importId` at part 1 drops an unfinished one. If the user declines or the
+approval expires, the parts are kept: ask the user, then send the final part
+again (after a decline, writes without a plan are refused for 30 s).
+
+**The result.** An import answers `applied` with `receipt.summary` (for a
+replace: sheets, symbols linked to the library and embedded, footprints or
+"the design's board kept") and an `import` report: `project`, `sheets`,
+`symbols`, `footprints`, `tracks`, `nets`, `missingFiles` (sheet files the
+project names but you did not send, up to 20), `warnings` (up to 10 lines,
+the last naming how many more) and `boardRevision`. `warnings` carries what
+File > Open logs: weak library links, unknown pin types, power symbols with an
+empty Value, oversize library tables, KiCad 6 sheets that disagree about a
+symbol, a board that was not read, and a replace that kept the board. Tell the user about each warning and
+missing file; a missing sheet file means part of the schematic is absent.
+
+`IMPORT_FAILED` says which file failed and why ("Could not open <file>:
+<error>"); nothing changed, so fix that file and import again.
+`IMPORT_PARTLY_APPLIED` (status `uncertain`) gives the same cause: the import
+stopped part-way and the design holds part of it. Read
+`pcb_schematic_get_summary` for the current revision and import again with it.
 
 Either way, every import asks the user in its own editor dialog, even inside a
 plan: plans cannot pre-approve it, so call it without `planId` (with one it
@@ -357,7 +433,30 @@ have changed the design, so read it before retrying.
   `Example: {...}` in millimetres. A bad argument is named by its path
   (`rails[1].rail: ...`), and an insert refusal by its reference. It is a
   normal stop: read the reason, fix the call or the design, and do not
-  invent other tools. `STALE_REVISION` means read again first.
+  invent other tools.
+- A write the editor cannot take refuses with its own cause:
+  - `WRITE_UNAVAILABLE`: your grant does not allow edits. Ask the user to
+    allow edits in the design's Agent panel.
+  - `READ_ONLY`: the message names the user's role on the design (such as
+    `VIEWER`), which cannot edit it. Reads still work. Tell the user to ask the
+    design's owner for edit access; do not retry.
+  - `ROOM_CLOSED`: co-editing stopped after the tab joined, so nothing made now
+    would be saved. Ask the user to reload the tab (or keep its edits with
+    File > Save Project as `.dtxpro`), then read again before writing.
+  - `DECLINE_COOLDOWN`: the user declined a write here, so writes without a
+    plan are refused for the seconds the message gives. Ask the user what they
+    want, or propose a plan; do not resend.
+  - `INVALID_IDEMPOTENCY_KEY`: `idempotencyKey` must be a UUID, a new one per
+    write.
+  - `STALE_REVISION`: the message says the design changed (or that a
+    collaborator changed it in the co-editing room) and gives its current
+    revision. Read what you need again, then send the call with that
+    `expectedRevision` and a new `idempotencyKey`.
+- In a shared co-editing room, a collaborator's edits no longer stop your
+  step: a write answers at the room's verdict, even if peers edit meanwhile,
+  and `ROOM_REJECTED` means the room refused it and took it back out (read the
+  current revision, then send it again). Only your next write's
+  `expectedRevision` must be current; `STALE_REVISION` gives it.
 - Report what you built from read-backs (ERC, DRC, nets, footprints), not from
   your own plan.
 
@@ -644,7 +743,7 @@ least one target; labels and rails need at least one entry. Each target needs
   identify existing sublayers. Changing copper count preserves thickness.
   Explicit ply thickness edits update board total thickness. Material
   properties are supplied facts, not verified impedance. See Board step 3 for
-  the explicit 2-layer FR4 export stackup.
+  the export stackups (two presets, 2 or 4 copper layers).
 - `pcb_board_configure_design_rules`: Changes board-wide Board Setup minimums
   while preserving other settings. It does not edit project net classes or
   establish supplier compliance. Zero disables a minimum; null restores its
@@ -677,12 +776,12 @@ least one target; labels and rails need at least one entry. Each target needs
 
 - `pcb_design_save`: See Save for durable checkpoints and approval, and Every
   call for revision tokens across tabs and sessions.
-- `pcb_board_export_manufacturing`: See Export for required plan facts,
-  refusals and returned archive metadata; see Approve the work for final-review
+- `pcb_board_export_manufacturing`: See Export for the save it makes first,
+  the presets, required plan facts, refusals and returned archive metadata; see Approve the work for final-review
   selectors and artifact selection, and Board step 3 for the explicit stackup.
 - `pcb_design_import_kicad`: See Import, merge or rename for its two sources
-  (KiCad files, or another design to merge), size limits, results and
-  separate editor approval.
+  (KiCad files, or another design to merge), the accepted files, sending in
+  parts, the `import` report, failures and separate editor approval.
 - `pcb_design_rename`: See Import, merge or rename.
 - `pcb_designs_list`, `pcb_design_create`, `pcb_design_open`: See Connect.
 - `pcb_task_run`: See Hand a task to the editor's agent.
