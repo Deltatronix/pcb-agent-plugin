@@ -99,7 +99,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.16 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.17 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -108,6 +108,14 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.17 (2026-11-23):** skill only. The skill teaches the engineering bar the final review
+  now checks: `pcb_part_define` draws an F.Fab outline with a pin-1 bevel by default, at `K`
+  for a diode or LED and at `+` for a polarized capacitor, and the agent adds a silk outline
+  clear of the pads; each IC supply pin gets its own decoupling capacitor, placed close to the
+  pin (the review warns above 3.5 mm); I2C lines get pull-ups unless a module carries them; USB
+  and power connectors go at the board edge. The export example shows the optional `pin-1` and
+  `polarity` checks, and the agent fixes the receipt's "Not verified" warnings before it
+  reports a passed review (Deltatronix-pcb#4615, #4616).
 - **0.2.16 (2026-11-23):** skill only. `pcb_plan_propose` no longer offers
   `requirements.placement` or `inputArtifacts`: `requirements` takes only `brief` and
   `finalReview`, and the server refuses any other key by name. The skill also covers the
