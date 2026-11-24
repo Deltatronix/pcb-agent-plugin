@@ -243,18 +243,27 @@ the symbol and footprint for the user.
    preset (Export below).
 4. `pcb_board_configure_design_rules` for board minimums (`minClearanceMm` and
    the other `*Mm` fields).
-5. Route each connection with `pcb_board_route_net` (`fromRef/fromPad`,
-   `toRef/toPad`, optional `layer` and `widthMm`). Without `layer` or `via`,
-   it tries every copper layer both pads share, then places up to two through
-   vias itself onto another signal layer; the result lists them under
-   `routing.vias`. With `layer` it stays on that layer. A search that stops
-   short returns `partial`, names the layers tried and whether the search
-   area or the time budget ran out, and adds nothing: move parts, or draw an
-   exact path with `pcb_board_add_track`. A partial route refuses its batch. A
-   net of a differential pair is refused: route it with
-   `pcb_board_route_pair` (Tool notes).
-6. `pcb_board_pour_copper_zone` (for example `GND` on `B.Cu`).
-7. Use the batch's DRC counts (with schematic parity when the schematic has
+5. Pour the planes first with `pcb_board_pour_copper_zone` (for example
+   `GND` on `B.Cu` or an inner plane layer): routing keeps signal tracks off
+   power-plane layers and out of other nets' plane fills.
+6. Route the whole board, or several nets, with `pcb_board_autoroute` (no
+   arguments, or `{"nets": ["SDA", "SCL"]}`). It routes every unrouted
+   connection in scope as one undoable edit, never moves existing or locked
+   copper, and reports routed/total, vias and each connection it left
+   unrouted (net, `ref.pad` ends, reason). An unrouted list is an honest
+   result: report it, or repair those connections one at a time. It leaves a
+   differential pair's nets unrouted (`pair-pending`); never route a pair as
+   two nets, route it with `pcb_board_route_pair` (Tool notes).
+7. Repair or add single connections with `pcb_board_route_net`
+   (`fromRef/fromPad`, `toRef/toPad`, optional `layer` and `widthMm`).
+   Without `layer` or `via`, it tries every copper layer both pads share,
+   then places up to two through vias itself onto another signal layer; the
+   result lists them under `routing.vias`. With `layer` it stays on that
+   layer. A search that stops short returns `partial`, names the layers tried
+   and whether the search area or the time budget ran out, and adds nothing:
+   move parts, or draw an exact path with `pcb_board_add_track`. A partial
+   route refuses its batch. A net of a differential pair is refused.
+8. Use the batch's DRC counts (with schematic parity when the schematic has
    parts); page `pcb_board_list_drc` and fix findings until clean.
 
 **Save.** `pcb_design_save` waits until the sheets and the board are durably
@@ -814,10 +823,17 @@ least one target; labels and rails need at least one entry. Each target needs
   while preserving other settings. It does not edit project net classes or
   establish supplier compliance. Zero disables a minimum; null restores its
   existing default. `minResolvedSpokes` is an integer count.
+- `pcb_board_autoroute`: The editor's autorouter over the same router and
+  DRC as `pcb_board_route_net`, in net order with one retry pass; every
+  connection whose copper adds a DRC marker is withdrawn (reason `drc`).
+  Reasons: `blocked`, `budget`, `drc`, `pair-pending`, `cancelled`. It routes
+  before asking, so the approval names the result, which can take a minute
+  on a large board. Its own call: never a `pcb_batch_write` operation.
+  Crossed pours refill in the same transaction. `effort` is `"normal"` only.
 - `pcb_board_route_net`: The editor's router, one 200 ms search budget per
   try, and the result must pass native DRC. Without `layer` or `via` it tries
   each copper layer both pads share, then through vias onto each other signal
-  layer, at most two per route (Board step 5); their size is the net class's
+  layer, at most two per route (Board step 7); their size is the net class's
   via raised to the board and fab minimums, and they never touch a pad or
   land on a power-plane layer. `via` (`toLayer`, `type: "through"`, optional
   `anchor` at a track end or an existing through via, `diameterMm`,
@@ -872,7 +888,7 @@ least one target; labels and rails need at least one entry. Each target needs
 - `pcb_board_run_drc`: Runs against the current board revision. Returns
   error, warning and unconnected counts by rule and the first findings page.
   Continue with `pcb_board_list_drc` and the returned cursor. The run never
-  edits; refill pours first. See Board step 7 for schematic parity.
+  edits; refill pours first. See Board step 8 for schematic parity.
 
 ### Designs, save, export and import
 
