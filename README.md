@@ -101,7 +101,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.20 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.21 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -110,6 +110,11 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.21 (2026-11-24):** skill only. Board: `pcb_board_autoroute` takes `effort`
+  `"quick"` (one pass in net order), `"normal"` (the default: rip-up and retry passes) or
+  `"thorough"` (more passes, slowest). On a large board use `"quick"`, and route in parts with
+  `nets` if it still passes the 90 s write window (Deltatronix-pcb#4664, #4663;
+  Deltatronix-backend#1083).
 - **0.2.20 (2026-11-24):** skill only. Board: `pcb_board_autoroute` routes every unrouted
   connection of the board, or of the nets named in `nets`, in one undo, and reports
   routed/total, vias and each connection left unrouted with its reason (`blocked`, `budget`,
