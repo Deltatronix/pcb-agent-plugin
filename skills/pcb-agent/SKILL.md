@@ -247,7 +247,8 @@ the symbol and footprint for the user.
    `GND` on `B.Cu` or an inner plane layer): routing keeps signal tracks off
    power-plane layers and out of other nets' plane fills.
 6. Route the whole board, or several nets, with `pcb_board_autoroute` (no
-   arguments, or `{"nets": ["SDA", "SCL"]}`). It routes every unrouted
+   arguments, or `{"nets": ["SDA", "SCL"]}`; on a large board add
+   `"effort": "quick"`). It routes every unrouted
    connection in scope as one undoable edit, never moves existing or locked
    copper, and reports routed/total, vias and each connection it left
    unrouted (net, `ref.pad` ends, reason). An unrouted list is an honest
@@ -824,13 +825,18 @@ least one target; labels and rails need at least one entry. Each target needs
   establish supplier compliance. Zero disables a minimum; null restores its
   existing default. `minResolvedSpokes` is an integer count.
 - `pcb_board_autoroute`: The editor's autorouter over the same router and
-  DRC as `pcb_board_route_net`, in net order with one retry pass; every
-  connection whose copper adds a DRC marker is withdrawn (reason `drc`).
-  Reasons: `blocked`, `budget`, `drc`, `pair-pending`, `cancelled`. It routes
-  before asking, so the approval names the result, which can take a minute
-  on a large board; a call past the 90 s write window answers `timed_out`
-  and adds nothing, so route that board in parts with `nets`. Its own call: never a `pcb_batch_write` operation.
-  Crossed pours refill in the same transaction. `effort` is `"normal"` only.
+  DRC as `pcb_board_route_net`: one pass in net order, then rip-up and retry
+  passes; every connection whose copper adds a DRC marker is withdrawn
+  (reason `drc`). Reasons: `blocked`, `budget`, `drc`, `pair-pending`,
+  `cancelled`. `effort`: `"quick"` is the single pass, `"normal"` (the
+  default) adds up to 7 rip-up passes, `"thorough"` up to 29 and is the
+  slowest. It routes before asking, so the approval names the result; a
+  call past the 90 s write window answers `timed_out` and adds nothing. On a
+  large board (hundreds of connections) use `"quick"`, and route in parts
+  with `nets` if quick still times out; then repair what is left with
+  `pcb_board_route_net`, or try `"normal"` on the nets left unrouted. Its
+  own call: never a `pcb_batch_write` operation. Crossed pours refill in the
+  same transaction.
 - `pcb_board_route_net`: The editor's router, one 200 ms search budget per
   try, and the result must pass native DRC. Without `layer` or `via` it tries
   each copper layer both pads share, then through vias onto each other signal

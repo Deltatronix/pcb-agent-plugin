@@ -12,7 +12,7 @@
         "url": "https://github.com/Deltatronix/pcb-agent-plugin.git",
         "sha": "bfc76ed6ed374b57b5cf6f806755a2f741d41cc9"
       },
-      "version": "0.2.20",
+      "version": "0.2.21",
       "description": "Build, check, save and export a Deltatronix PCB design in its open editor."
     }
   ]
