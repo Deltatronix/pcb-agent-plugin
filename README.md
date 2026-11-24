@@ -76,8 +76,8 @@ Catalog version 2: every call passes `designId` and `catalogVersion: 2`.
   tidy, net classes. A pin is named by its pin name, or by number when the part repeats a name.
 - **Board:** set the outline, sync from the schematic (Update PCB) or reload footprints from
   the library, place, autoplace and move footprints, delete items, configure the stackup and
-  design rules, route a net (with up to two router-placed vias), route and tune a differential
-  pair, add an exact track, pour and refill copper zones.
+  design rules, autoroute the board or named nets, route a net (with up to two router-placed
+  vias), route and tune a differential pair, add an exact track, pour and refill copper zones.
 - **Save and export:** `pcb_design_save` returns `saved` only when the schematic and board are
   durably stored. `pcb_board_export_manufacturing` runs the final review and stores a ZIP of
   Gerbers, drill, position and BOM files as a design asset, returning a reference and a
@@ -101,7 +101,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.19 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.20 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -110,6 +110,16 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.20 (2026-11-24):** skill only. Board: `pcb_board_autoroute` routes every unrouted
+  connection of the board, or of the nets named in `nets`, in one undo, and reports
+  routed/total, vias and each connection left unrouted with its reason (`blocked`, `budget`,
+  `drc`, `pair-pending`, `cancelled`); pour the planes first, treat an unrouted list as an
+  honest result, and repair single connections with `pcb_board_route_net`. It leaves a pair's
+  nets to `pcb_board_route_pair` and is never a `pcb_batch_write` operation. `effort` takes
+  `"normal"` only for now. It routes before asking, so the approval names the result and can
+  take a minute on a large board; a call past the 90 s write window answers `timed_out` and
+  adds nothing, so route that board in parts with `nets` (Deltatronix-pcb#4664;
+  Deltatronix-backend#1082).
 - **0.2.19 (2026-11-23):** skill only. Toolboxes: the new `advanced` toolbox starts closed and
   holds `pcb_board_route_pair`, `pcb_board_tune_pair` and `pcb_design_import_kicad`; open it
   with `open_toolbox` (in Codex it appears in the next session, and the pair writes work now as

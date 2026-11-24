@@ -828,7 +828,8 @@ least one target; labels and rails need at least one entry. Each target needs
   connection whose copper adds a DRC marker is withdrawn (reason `drc`).
   Reasons: `blocked`, `budget`, `drc`, `pair-pending`, `cancelled`. It routes
   before asking, so the approval names the result, which can take a minute
-  on a large board. Its own call: never a `pcb_batch_write` operation.
+  on a large board; a call past the 90 s write window answers `timed_out`
+  and adds nothing, so route that board in parts with `nets`. Its own call: never a `pcb_batch_write` operation.
   Crossed pours refill in the same transaction. `effort` is `"normal"` only.
 - `pcb_board_route_net`: The editor's router, one 200 ms search budget per
   try, and the result must pass native DRC. Without `layer` or `via` it tries
