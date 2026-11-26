@@ -693,9 +693,9 @@ least one target; labels and rails need at least one entry. Each target needs
   free 100 mil slot on that side of a placed part. Omit both to select the
   next free slot to the right of the sheet's parts. Raw geometry and
   manufacturer claims are not accepted.
-- `pcb_schematic_connect`: Wire pins on one sheet placement: one pair (from,
-  to) or up to 64 pairs (connections), all or nothing; refuses unintended
-  joins, cross-sheet and bus paths. Plan required. Example:
+- `pcb_schematic_connect`: Wire up to 64 pin pairs on one sheet placement,
+  all or nothing; refuses unintended joins, cross-sheet and bus paths. One
+  pair is a list of one. Example:
 
   ```text
   {"connections":[{"from":{"reference":"J1","pin":"VBUS"},"to":{"reference":"R3","pin":"1"}},{"from":{"reference":"R3","pin":"2"},"to":{"reference":"D1","pin":"A"}}]}
@@ -753,11 +753,10 @@ least one target; labels and rails need at least one entry. Each target needs
   Flags go on connection points. Already marked pins use the skip rule above.
   Missing or connected pins refuse.
 - `pcb_schematic_add_wire`: Explicit points contain 2..64 sheet coordinates
-  on the connection grid from Every call and are never rounded. Named
-  `from`/`to` pins produce an orthogonal path. Code adds junctions where the
-  wire tees into another wire. A wire that would join two named nets refuses
-  and names them, as does a points wire onto a no-connect pin; a wire within
-  one net applies.
+  on the connection grid from Every call and are never rounded. Code adds
+  junctions where the wire tees into another wire. A wire that would join two
+  named nets refuses and names them, as does a points wire onto a no-connect
+  pin; a wire within one net applies. Pin to pin is `pcb_schematic_connect`.
 - `pcb_schematic_move_symbol`: Addresses an unwired symbol by reference.
   Move all units or one unit by direction and a number of 2.54 mm steps; code
   computes the grid position. Broken or joined connections, body overlap and
