@@ -185,9 +185,17 @@ the symbol and footprint for the user.
 1. `pcb_schematic_insert_components`: references, `sheetInstanceId` from the
    summary, `inlinePartId` or `decisionId`, positions, and each part's `value`
    (`"10k"`, `"220R"`), set on insert. Leave room: a wire between two pins must
-   not cross a third pin. Give each IC supply pin its own decoupling capacitor
-   to ground, and each I2C line (SDA, SCL) a pull-up resistor to its rail
-   unless a module on the bus carries its own.
+   not cross a third pin.
+   Plan the smallest set of parts that meets the request: a part is there
+   because the user asked for it, an interface standard or datasheet requires
+   it, or the circuit does not work without it. That includes each IC supply
+   pin's decoupling capacitor, a pull-up on each I2C line (SDA, SCL) unless a
+   module on the bus carries its own, and a 5.1k pull-down on each of CC1 and
+   CC2 of a USB-C receptacle that takes power. Name every part you add and
+   its reason in the plan's step summaries and in your final message
+   ("R1, R2 5.1k: USB-C CC pull-downs; a charger gives no power without
+   them"). Offer a part that only helps (protection, test points, extra
+   indicators) in one line instead of adding it.
    `pcb_schematic_set_symbol_field` changes a Value later (and Footprint,
    Datasheet).
 2. The pin tools take lists. A target is one part and some of its pins:
