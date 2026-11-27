@@ -9,7 +9,7 @@
       "source": {
         "source": "url",
         "url": "https://github.com/Deltatronix/pcb-agent-plugin.git",
-        "sha": "e5dff2a6ee47b5ee53e0bea9412e7ccc84263fb2"
+        "sha": "e2cfb6ca91e4eeb3189361787b966c267f2b0d0a"
       },
       "policy": {
         "installation": "AVAILABLE",
