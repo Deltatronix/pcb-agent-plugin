@@ -238,14 +238,19 @@ the symbol and footprint for the user.
 1. `pcb_board_set_outline` with `rect {x, y, width, height}` or closed segments.
 2. `pcb_board_sync_components` (Update PCB) with no `positions`: new
    footprints land beside the outline, as in the editor, and the receipt warns
-   that they are off the board. Then `pcb_board_place_footprint` (mm) for each
-   reference, or `pcb_board_autoplace` with `{"references": ["R1", "C3"]}` to
-   let the editor's autoplace put them inside the outline near the copper
-   they connect to (place connectors and other fixed parts yourself first).
-   `pcb_board_list_footprints` reads them back. Place each IC's
+   that they are off the board. Then place them with `pcb_board_autoplace`
+   and every reference, for example
+   `{"references": ["J1", "R1", "R2", "D1"]}`: connectors, right-angle
+   potentiometers and switches go on a board edge with the mating side facing
+   out, and nothing is placed in front of them. Add `"edge": ["X1"]` for a
+   side-access part whose reference is not J, P, CN, RV or SW, and
+   `"interior": ["J3"]` for a connector that belongs inside the board (battery,
+   board-to-board). Use `pcb_board_place_footprint` (mm) only for a position
+   the user gave. `pcb_board_list_footprints` reads them back. An
+   `access-blocked` warning in a receipt or the final review means a plug
+   cannot reach that part: move the part in front of it. Place each IC's
    decoupling capacitor close to the supply pin it serves: the final review
-   warns above 3.5 mm, or above a reviewed `layout` distance fact. Put USB and
-   power connectors at the board edge.
+   warns above 3.5 mm, or above a reviewed `layout` distance fact.
 3. `pcb_board_configure_stackup`, for example 2 copper layers and one FR4
    dielectric: export needs an explicit stackup that matches a manufacturing
    preset (Export below).
@@ -808,15 +813,16 @@ least one target; labels and rails need at least one entry. Each target needs
 - `pcb_board_place_footprint`: Positions are absolute; rotation is degrees.
   Courtyard overlaps and courtyards crossing the edge are applied and reported
   as receipt warnings.
-- `pcb_board_autoplace`: `{"references": [...]}` (1 to 200). The editor's
-  autoplace: each part moves to the free spot inside the board outline
-  nearest the copper it connects to, keeping its rotation and side; a part
-  with no room stays where it is and the receipt names it. One undo for the
-  whole call. It needs a closed outline on Edge.Cuts; an unknown, shared or
-  locked reference is refused before anything moves. Approved placement facts
-  are honoured, and a result that breaks them is refused with the board
-  unchanged; an MCP plan carries no placement facts, so over MCP placement
-  findings come back as receipt warnings, as for `pcb_board_place_footprint`.
+- `pcb_board_autoplace`: `{"references": ["J1", "R1", "C3"], "edge":
+  ["J1"]}`, or `{"references": ["J1", "J3", "R1"], "interior": ["J3"]}`.
+  Autoplace footprints by reference: side-access parts (connectors,
+  right-angle potentiometers and switches) go on a board edge, mating side
+  out, first; each other part moves to the free spot inside the outline
+  nearest the copper it connects to, never in front of a connector. `edge`
+  adds references to put on the edge; `interior` keeps a named connector off
+  it. Rotation and side kept, except an edge part may turn. A reference in the
+  schematic but not yet on the board is brought in first. One with no room
+  stays. One undo.
 - `pcb_board_move_footprint`: Movement is relative to the footprint's current
   position.
 - `pcb_board_delete_items`: Accepts footprint `references` and `ids` of
