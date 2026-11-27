@@ -839,7 +839,9 @@ least one target; labels and rails need at least one entry. Each target needs
   adds references to put on the edge; `interior` keeps a named connector off
   it. Rotation and side kept, except an edge part may turn. A reference in the
   schematic but not yet on the board is brought in first. One with no room
-  stays. One undo.
+  stays. One undo. It needs a closed outline on Edge.Cuts; an unknown, shared
+  or locked reference is refused before anything moves. Over MCP, placement
+  findings come back as receipt warnings, as for `pcb_board_place_footprint`.
 - `pcb_board_move_footprint`: Movement is relative to the footprint's current
   position.
 - `pcb_board_delete_items`: Accepts footprint `references` and `ids` of
