@@ -131,8 +131,8 @@ After plan approval, build in this order. The per-tool steps below are the
 reference for each operation's `args`.
 
 1. One schematic `pcb_batch_write` with `check: true`: define missing parts
-   first in that same batch, then insert, power, labels, connect, label,
-   no-connect.
+   first in that same batch, then insert, power, connect, labels (only where
+   a wire cannot go), no-connect.
 2. Read `pcb_board_get_summary` again with a small `pageSize`: a schematic
    commit moves the board revision. Use this revision for the board batch.
 3. One board `pcb_batch_write`: outline, sync, placements, stackup, rules,
@@ -207,11 +207,15 @@ the symbol and footprint for the user.
    PWR_FLAG per rail only when nothing drives that rail:
    `{"rails": [{"rail": "+5V", "targets": [{"reference": "A1", "pins": ["5V"]}]},
    {"rail": "GND", "targets": [{"reference": "A1", "pins": ["4", "29"]}]}]}`
-4. Signals: `pcb_schematic_add_label`, one entry per net with all its pins
-   (`global` labels give board nets those exact names):
-   `{"labels": [{"net": "POT", "kind": "global", "targets": [{"reference": "A1",
-   "pins": ["A0"]}, {"reference": "RV1", "pins": ["W"]}]}]}`. Or
-   `pcb_schematic_connect` for a direct wire, then a label to name it.
+4. Signals: wire pin to pin with `pcb_schematic_connect`, every pair in one
+   call, so a person can follow each net by eye:
+   `{"connections": [{"from": {"reference": "RV1", "pin": "W"}, "to":
+   {"reference": "A1", "pin": "A0"}}]}`. A net of several pins is a chain: A
+   to B, then B to C. Use `pcb_schematic_add_label` only for a net that
+   crosses sheets, a bus, or a net of more than 4 pins spread across the
+   sheet; one label also names a wired net (`global` labels give board nets
+   those exact names). `pcb_schematic_get_summary` counts the nets still
+   joined by labels (`labelJoinedNets`): report it with the reason for each.
 5. Sub-sheets and buses: `pcb_schematic_add_sheet` adds a block under the
    root (or `sheet`) with its pins, `{"name": "Driver", "pins": ["EN",
    "D[0..3]"]}`; each pin gets a local label of its name on the parent, and
@@ -702,10 +706,13 @@ least one target; labels and rails need at least one entry. Each target needs
   free 100 mil slot on that side of a placed part. Omit both to select the
   next free slot to the right of the sheet's parts. Raw geometry and
   manufacturer claims are not accepted.
-- `pcb_schematic_connect`: Connects exactly two actual embedded pins on one
-  unique sheet placement. Code resolves native geometry. Cross-sheet,
-  repeated-file, a path that meets a bus and unintended joins refuse; a join
-  of two named nets refuses naming both.
+- `pcb_schematic_connect`: Wire up to 64 pin pairs on one sheet placement,
+  all or nothing; refuses unintended joins, cross-sheet and bus paths. One
+  pair is a list of one. Example:
+
+  ```text
+  {"connections":[{"from":{"reference":"J1","pin":"VBUS"},"to":{"reference":"R3","pin":"1"}},{"from":{"reference":"R3","pin":"2"},"to":{"reference":"D1","pin":"A"}}]}
+  ```
 - `pcb_schematic_add_label`: List form:
 
   ```text
@@ -759,11 +766,10 @@ least one target; labels and rails need at least one entry. Each target needs
   Flags go on connection points. Already marked pins use the skip rule above.
   Missing or connected pins refuse.
 - `pcb_schematic_add_wire`: Explicit points contain 2..64 sheet coordinates
-  on the connection grid from Every call and are never rounded. Named
-  `from`/`to` pins produce an orthogonal path. Code adds junctions where the
-  wire tees into another wire. A wire that would join two named nets refuses
-  and names them, as does a points wire onto a no-connect pin; a wire within
-  one net applies.
+  on the connection grid from Every call and are never rounded. Code adds
+  junctions where the wire tees into another wire. A wire that would join two
+  named nets refuses and names them, as does a points wire onto a no-connect
+  pin; a wire within one net applies. Pin to pin is `pcb_schematic_connect`.
 - `pcb_schematic_move_symbol`: Addresses an unwired symbol by reference.
   Move all units or one unit by direction and a number of 2.54 mm steps; code
   computes the grid position. Broken or joined connections, body overlap and
