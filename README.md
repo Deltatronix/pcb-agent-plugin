@@ -101,7 +101,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.22 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.23 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -110,6 +110,14 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.23 (2026-11-27):** skill only. Schematic: a placed symbol never lands on another
+  symbol, its pins or its text, and each power symbol hangs on one straight wire; the skill reads
+  `counts.drawing` (`overlaps`, `detours`) from the summary, ends a step with 0 overlaps
+  (`pcb_schematic_tidy` with `"layout": true` fixes one) and reports each detour it leaves.
+  `pcb_schematic_connect` and `pcb_schematic_add_power` seat each chain of two-pin parts off a
+  pin in a column on that pin's line, with straight wires and the ground symbols of one side on
+  one row, so the skill leaves two-pin parts as inserted and reports any the result left
+  (Deltatronix-pcb#4831, #4832).
 - **0.2.22 (2026-11-27):** skill only. Schematic: `pcb_schematic_connect` wires every pin pair
   of a step in one call (`connections`, up to 64, all or nothing; one pair is a list of one) and
   `pcb_schematic_add_wire` takes points only; the skill wires pin to pin, keeps labels for

@@ -227,6 +227,12 @@ the symbol and footprint for the user.
    sheet; one label also names a wired net (`global` labels give board nets
    those exact names). `pcb_schematic_get_summary` counts the nets still
    joined by labels (`labelJoinedNets`): report it with the reason for each.
+   You do not arrange two-pin parts. `pcb_schematic_connect` and
+   `pcb_schematic_add_power` seat each chain off a pin (pin, part, part,
+   rail) in a column on that pin's line, with straight wires and the ground
+   symbols of one side on one row. Insert with `near` beside the part they
+   connect to and leave them. The result names what was seated and what was
+   left; for a part it left, say why in your report.
 5. Sub-sheets and buses: `pcb_schematic_add_sheet` adds a block under the
    root (or `sheet`) with its pins, `{"name": "Driver", "pins": ["EN",
    "D[0..3]"]}`; each pin gets a local label of its name on the parent, and
@@ -247,6 +253,10 @@ the symbol and footprint for the user.
    refused with the numbers to use.
 8. Use the batch's ERC counts; page `pcb_schematic_list_erc` and fix findings
    until clean before building the board.
+   Read `counts.drawing` from `pcb_schematic_get_summary` too: `overlaps`
+   must be 0 before you go on (a symbol on another symbol or its text, a wire
+   through a part). Fix one with `pcb_schematic_tidy` and `"layout": true`.
+   Report each of the `detours` you leave (a wire with more than 2 corners).
 
 **Board.**
 
