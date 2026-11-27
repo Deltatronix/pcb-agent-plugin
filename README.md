@@ -101,7 +101,7 @@ unavailable results come with a reason and are normal stop results.
 
 ## Status
 
-Version 0.2.21 matches the server's catalog version 2. The server and editor are live at
+Version 0.2.22 matches the server's catalog version 2. The server and editor are live at
 `https://api.deltatronix.io/mcp` and `https://pcb.deltatronix.io`. In the editor's own test
 harness, a recorded client builds the reference design (an Arduino Nano board where a
 potentiometer dims an LED) from an empty design through these tools only: ERC 0, DRC 0, the
@@ -110,6 +110,16 @@ a row. Please report problems in this repository's issues.
 
 ## Changelog
 
+- **0.2.22 (2026-11-27):** skill only. Schematic: `pcb_schematic_connect` wires every pin pair
+  of a step in one call (`connections`, up to 64, all or nothing; one pair is a list of one) and
+  `pcb_schematic_add_wire` takes points only; the skill wires pin to pin, keeps labels for
+  cross-sheet, bus and spread nets, and reports `labelJoinedNets` from the summary. Board:
+  connectors, right-angle potentiometers and switches go on a board edge, facing out, through
+  `pcb_board_autoplace` (`edge` / `interior` for exceptions); an `access-blocked` warning means
+  a part sits in front of one. Plan: the skill asks how the board will be built (compact,
+  standard or hand-solder) and records it as the brief's `assembly` item, which sets autoplace
+  spacing and the final review's assembly checks; it plans the smallest set of parts and names
+  every added part with its reason (Deltatronix-pcb#4788, #4789, #4790, #4791).
 - **0.2.21 (2026-11-24):** skill only. Board: `pcb_board_autoroute` takes `effort`
   `"quick"` (one pass in net order), `"normal"` (the default: rip-up and retry passes) or
   `"thorough"` (more passes, slowest). On a large board use `"quick"`, and route in parts with
