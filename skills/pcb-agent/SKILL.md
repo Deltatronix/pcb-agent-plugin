@@ -92,6 +92,17 @@ or severity, or use a smaller `pageSize`. For `pcb_schematic_list_symbols` and
 1. Read first: `pcb_schematic_get_summary` (counts, ERC and the sheet placements:
    `sheets[].sheetInstanceId`, which inserts need) and
    `pcb_board_get_summary` with a small `pageSize`. Use the returned revisions.
+   Ask how the board will be built unless the design's brief already says:
+   compact (smallest, machine assembled), standard, or hand (easy to solder
+   by hand: more room between parts and larger packages). Put the answer in
+   the plan's `requirements.brief.items` as
+   `{"id": "assembly", "kind": "assembly", "text": "Hand-soldered board",
+   "value": {"profile": "hand"}, "category": "user_decision", "provenance":
+   "user", "approval": "approved"}`. `pcb_board_autoplace` then keeps 0.25,
+   1 or 2.5 mm between parts, and the final review reports parts closer
+   (`assembly-spacing`) or smaller (`assembly-package`) than the profile
+   allows. Pick packages to match: hand means 0805 or larger passives and
+   leaded or through-hole parts.
 2. Propose one plan with `pcb_plan_propose`: a `title`, `steps`
    (`{summary, tools[]}` the user reads), `maxCalls` (one per batch operation
    plus other planned writes, up to 500), `expiresInMinutes` (up to 120),
